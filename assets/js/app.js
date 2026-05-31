@@ -285,6 +285,8 @@
         ${ds.length ? ds.map(d => `<div class="card">
           <div class="card-top"><div class="card-name">${esc(d.name)}</div>${d.points != null ? `<span class="chip">${d.points} pts</span>` : ''}</div>
           ${d.faction ? `<div class="card-faction">${esc(d.faction)}</div>` : ''}
+          ${d.tiers && d.tiers.length > 1 ? `<div class="card-meta">${d.tiers.map(t => `<span class="chip">${t.models} → ${t.points}</span>`).join('')}</div>` : ''}
+          ${d.source === 'mfm' ? '<span class="muted" style="font-size:0.72rem">MFM v4.3</span>' : ''}
           ${d.stats ? `<div class="card-meta">${Object.entries(d.stats).filter(([, v]) => v).map(([k, v]) => `<span class="chip">${esc(k)} ${esc(v)}</span>`).join('')}</div>` : ''}
           ${d.keywords && d.keywords.length ? `<div class="tag-list">${d.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join('')}</div>` : ''}
           ${d.abilities ? `<div class="card-notes">${esc(d.abilities)}</div>` : ''}
@@ -310,6 +312,18 @@
           <button class="btn-secondary" id="impBtn">⬆ Import JSON</button>
           <input type="file" id="impFile" accept="application/json,.json" class="hidden">
         </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h3>Official points · Munitorum Field Manual v4.3</h3>
+        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Load datasheets with current points for the armies you play. Pick factions (or load all ${S.officialFactions().length}). Re-run any time to refresh after an update.</p>
+        <select id="mfmFactions" multiple size="6" style="height:auto">
+          ${S.officialFactions().map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')}
+        </select>
+        <div class="form-row" style="margin-top:10px">
+          <button class="btn-gold" id="mfmLoad">Load selected</button>
+          <button class="btn-secondary" id="mfmAll">Load all factions</button>
+        </div>
+        <div id="mfmStatus" class="muted" style="font-size:0.82rem;margin-top:10px"></div>
       </div>
       <div class="card" style="margin-bottom:16px">
         <h3>Import roster (CSV / text)</h3>
@@ -350,6 +364,17 @@ create policy "anon access" on collections
       r.onload = () => { try { const mode = confirm('OK = replace everything. Cancel = merge into current data.') ? 'replace' : 'merge'; S.importAll(r.result, mode); toast('Imported'); renderNav(); render(); } catch (err) { alert('Bad file: ' + err.message); } };
       r.readAsText(file); e.target.value = '';
     };
+    const loadMfm = (factions) => {
+      const r = S.importOfficialPoints(factions);
+      $('#mfmStatus').textContent = `Loaded ${r.added} new + refreshed ${r.updated} datasheet(s).`;
+      $('#mfmStatus').style.color = 'var(--done)'; renderNav();
+    };
+    $('#mfmLoad').onclick = () => {
+      const sel = [...$('#mfmFactions').selectedOptions].map(o => o.value);
+      if (!sel.length) { $('#mfmStatus').textContent = 'Pick at least one faction (or use Load all).'; $('#mfmStatus').style.color = 'var(--accent2)'; return; }
+      loadMfm(sel);
+    };
+    $('#mfmAll').onclick = () => { if (confirm(`Load all ${S.officialFactions().length} factions (${(window.POINTS_DATA||[]).length} datasheets)?`)) loadMfm(null); };
     $('#rosterBtn').onclick = () => {
       const txt = $('#rosterText').value; if (!txt.trim()) return;
       try { const n = S.importRosterText(txt); toast(`Added ${n} unit(s)`); $('#rosterText').value = ''; renderNav(); } catch (err) { alert('Could not parse: ' + err.message); }

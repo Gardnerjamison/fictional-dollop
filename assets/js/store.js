@@ -211,6 +211,30 @@
     return out;
   }
 
+  // ---- Official points (Munitorum Field Manual) ----
+  function officialFactions() {
+    const d = global.POINTS_DATA || [];
+    return [...new Set(d.map(u => u.faction))].sort();
+  }
+  // Create/refresh datasheets from the bundled points data, optionally limited to factions.
+  function importOfficialPoints(factions) {
+    const src = global.POINTS_DATA || [];
+    const want = factions && factions.length ? new Set(factions) : null;
+    let added = 0, updated = 0;
+    src.forEach(u => {
+      if (want && !want.has(u.faction)) return;
+      const base = u.tiers[0] ? u.tiers[0].points : null;
+      const existing = (data.datasheets || []).find(d => d.name === u.name && d.faction === u.faction && d.source === 'mfm');
+      const rec = {
+        name: u.name, faction: u.faction, points: base, tiers: u.tiers,
+        source: 'mfm', stats: existing ? existing.stats : {}, keywords: existing ? existing.keywords : [], abilities: existing ? existing.abilities : '',
+      };
+      if (existing) { rec.id = existing.id; updated++; } else { added++; }
+      upsert('datasheets', rec);
+    });
+    return { added, updated };
+  }
+
   // ---- Cloud sync (Supabase REST, single JSON blob, last-write-wins) ----
   const Sync = {
     cfg: JSON.parse(localStorage.getItem(SYNC) || 'null') || { url: '', key: '', syncKey: '', auto: false },
@@ -270,6 +294,7 @@
     list, get, upsert, remove,
     factionNames, paintStats, totalPoints, collectionValue,
     exportAll, importAll, importRosterText,
+    officialFactions, importOfficialPoints,
     Sync,
   };
 })(window);
