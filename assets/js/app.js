@@ -372,8 +372,13 @@
         <textarea id="rosterText" placeholder="name,faction,qty,status,points&#10;Intercessors,Space Marines,5,unpainted,80"></textarea>
         <div class="form-row" style="margin-top:10px"><button class="btn-gold" id="rosterBtn">Import units</button></div>
       </div>
-      <div class="card">
-        <h3>☁ Cloud sync (Supabase)</h3>
+      <div class="card" style="margin-bottom:16px">
+        <h3>🤖 AI model recognition</h3>
+        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Snap or upload a photo of a mini and Claude will identify the unit and faction for you. Your key is stored only in this browser and sent only to Anthropic.</p>
+        <div class="field"><label>Anthropic API key</label><input type="password" id="aiKey" value="${esc(localStorage.getItem('wh_ai_key') || '')}" placeholder="sk-ant-…" autocomplete="off"></div>
+        <div class="form-row"><button class="btn-secondary" id="aiSave">Save key</button></div>
+        <div id="aiStatus" class="muted" style="font-size:0.82rem;margin-top:8px"></div>
+      </div>
         <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Share one collection across devices. Same sync key everywhere. One-time SQL setup below.</p>
         <div class="field"><label>Supabase URL</label><input type="text" id="sbUrl" value="${esc(c.url)}" placeholder="https://xxxx.supabase.co"></div>
         <div class="field"><label>Anon key</label><input type="text" id="sbKey" value="${esc(c.key)}" placeholder="eyJ…"></div>
@@ -425,6 +430,13 @@ create policy "anon access" on collections
       S.Sync.saveCfg({ url: $('#sbUrl').value.trim().replace(/\/+$/, ''), key: $('#sbKey').value.trim(), syncKey: $('#sbSyncKey').value.trim(), auto: $('#sbAuto').checked });
       status(S.Sync.configured() ? 'Saved.' : 'Fill all three fields to enable sync.', S.Sync.configured());
     };
+    const aiSt = (m, ok) => { const el = $('#aiStatus'); el.textContent = m; el.style.color = ok === false ? 'var(--accent2)' : ok ? 'var(--done)' : 'var(--muted)'; };
+    $('#aiSave').onclick = () => {
+      const k = $('#aiKey').value.trim();
+      if (!k) { localStorage.removeItem('wh_ai_key'); aiSt('Key cleared.', null); return; }
+      if (!k.startsWith('sk-ant-')) { aiSt('Key should start with sk-ant-…', false); return; }
+      localStorage.setItem('wh_ai_key', k); aiSt('Key saved.', true);
+    };
     $('#sbSync').onclick = async () => {
       S.Sync.saveCfg({ url: $('#sbUrl').value.trim().replace(/\/+$/, ''), key: $('#sbKey').value.trim(), syncKey: $('#sbSyncKey').value.trim(), auto: $('#sbAuto').checked });
       if (!S.Sync.configured()) { status('Fill all three fields first.', false); return; }
@@ -451,6 +463,17 @@ create policy "anon access" on collections
     const statusOpts = S.STATUSES.map(s => `<option value="${s.id}" ${m.status === s.id ? 'selected' : ''}>${s.label}</option>`).join('');
     const o = modal(`
       <h2>${id ? 'Edit Unit' : 'Add Unit'}</h2>
+      ${!id && localStorage.getItem('wh_ai_key') ? `
+      <div id="aiRecogBox" style="margin-bottom:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:0.78rem;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px">AI Model Recognition</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn-gold btn-sm" id="aiCamera">📷 Take photo</button>
+          <button class="btn-secondary btn-sm" id="aiUpload">🖼 Upload image</button>
+          <input type="file" id="aiFile" accept="image/*" capture="environment" class="hidden">
+          <span id="aiRecogStatus" class="muted" style="font-size:0.8rem"></span>
+        </div>
+        <div id="aiPreviewWrap" style="margin-top:8px;display:none"><img id="aiPreview" style="max-height:120px;border-radius:6px;border:1px solid var(--border)"></div>
+      </div>` : ''}
       <div class="form-row">
         <div class="field" style="flex:2">
           <label>Unit name *</label>
@@ -532,6 +555,73 @@ create policy "anon access" on collections
     o.querySelector('.modal').addEventListener('scroll', repos, true);
 
     nameInput.focus();
+
+    // ---- AI recognition ----
+    const aiCam = o.querySelector('#aiCamera');
+    const aiUpBtn = o.querySelector('#aiUpload');
+    const aiFile = o.querySelector('#aiFile');
+    if (aiCam && aiUpBtn && aiFile) {
+      const aiStat = o.querySelector('#aiRecogStatus');
+      const aiPrev = o.querySelector('#aiPreview');
+      const aiPrevWrap = o.querySelector('#aiPreviewWrap');
+
+      async function recognise(file) {
+        const key = localStorage.getItem('wh_ai_key');
+        if (!key) return;
+        aiStat.textContent = 'Recognising…'; aiStat.style.color = 'var(--muted)';
+        // Show preview
+        const previewUrl = URL.createObjectURL(file);
+        aiPrev.src = previewUrl; aiPrevWrap.style.display = '';
+        // Convert to base64
+        const b64 = await new Promise((res, rej) => {
+          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file);
+        });
+        const mediaType = file.type || 'image/jpeg';
+        try {
+          const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 120,
+              messages: [{
+                role: 'user',
+                content: [
+                  { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+                  { type: 'text', text: 'This is a Warhammer 40,000 miniature. Identify the unit name and faction. Reply with exactly two lines:\nUnit: <unit name>\nFaction: <faction name>\nIf you cannot identify it, reply: Unit: Unknown\nFaction: Unknown' }
+                ]
+              }]
+            })
+          });
+          if (!resp.ok) { const t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0, 120)); }
+          const data = await resp.json();
+          const text = data.content[0].text.trim();
+          const unitM = text.match(/Unit:\s*(.+)/i);
+          const facM = text.match(/Faction:\s*(.+)/i);
+          const unitName = unitM ? unitM[1].trim() : '';
+          const faction = facM ? facM[1].trim() : '';
+          if (!unitName || unitName.toLowerCase() === 'unknown') {
+            aiStat.textContent = 'Could not identify — try a clearer photo.'; aiStat.style.color = 'var(--accent2)'; return;
+          }
+          aiStat.textContent = `Identified: ${unitName} (${faction})`; aiStat.style.color = 'var(--done)';
+          // Try to match against known units for autocomplete fill
+          const ql = unitName.toLowerCase();
+          const hit = allUnits.find(u => u.name.toLowerCase() === ql)
+            || allUnits.find(u => u.name.toLowerCase().includes(ql))
+            || allUnits.find(u => ql.includes(u.name.toLowerCase()));
+          if (hit) { fillFromUnit(hit); }
+          else { nameInput.value = unitName; o.querySelector('#mFaction').value = faction; }
+        } catch (err) {
+          aiStat.textContent = 'Error: ' + err.message; aiStat.style.color = 'var(--accent2)';
+          console.error(err);
+        }
+      }
+
+      aiCam.onclick = () => { aiFile.removeAttribute('capture'); aiFile.setAttribute('capture', 'environment'); aiFile.click(); };
+      aiUpBtn.onclick = () => { aiFile.removeAttribute('capture'); aiFile.click(); };
+      aiFile.onchange = e => { const f = e.target.files[0]; if (f) recognise(f); e.target.value = ''; };
+    }
+
     o.querySelector('#mSave').onclick = () => {
       const name = o.querySelector('#mName').value.trim(); if (!name) { o.querySelector('#mName').focus(); return; }
       const csv = v => v.split(',').map(s => s.trim()).filter(Boolean);
