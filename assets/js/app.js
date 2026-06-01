@@ -452,10 +452,9 @@ create policy "anon access" on collections
     const o = modal(`
       <h2>${id ? 'Edit Unit' : 'Add Unit'}</h2>
       <div class="form-row">
-        <div class="field" style="flex:2;position:relative">
+        <div class="field" style="flex:2">
           <label>Unit name *</label>
           <input type="text" id="mName" value="${esc(m.name || '')}" autocomplete="off" placeholder="Start typing a unit name…">
-          <div id="mNameDrop" class="ac-drop"></div>
         </div>
         <div class="field"><label>Models</label><input type="number" id="mQty" min="1" value="${m.modelCount || 1}"></div>
       </div>
@@ -488,46 +487,53 @@ create policy "anon access" on collections
     `);
     o.querySelector('#mCancel').onclick = o._close;
 
-    // ---- Unit name autocomplete ----
+    // ---- Unit name autocomplete (dropdown rendered on body so the modal can't clip it) ----
     const allUnits = window.POINTS_DATA || [];
     const nameInput = o.querySelector('#mName');
-    const drop = o.querySelector('#mNameDrop');
-    let acIdx = -1;
+    const drop = document.createElement('div');
+    drop.className = 'ac-drop';
+    o.appendChild(drop); // inside overlay → removed with the modal; position:fixed escapes clipping
+    let acIdx = -1, curHits = [];
 
+    function closeDrop() { drop.classList.remove('open'); drop.innerHTML = ''; acIdx = -1; }
+    function position() {
+      const r = nameInput.getBoundingClientRect();
+      drop.style.left = r.left + 'px';
+      drop.style.top = (r.bottom) + 'px';
+      drop.style.width = r.width + 'px';
+    }
     function fillFromUnit(u) {
       nameInput.value = u.name;
       o.querySelector('#mFaction').value = u.faction || '';
-      // auto-fill points from first tier
       const pts = u.tiers && u.tiers[0] ? u.tiers[0].points : null;
       if (pts != null) o.querySelector('#mPoints').value = pts;
-      // link datasheet if one exists
       const ds = S.list('datasheets').find(d => d.name === u.name && d.faction === u.faction);
       if (ds) o.querySelector('#mDs').value = ds.id;
-      drop.innerHTML = ''; drop.classList.remove('open'); acIdx = -1;
+      closeDrop();
     }
-
+    function highlight() { drop.querySelectorAll('.ac-item').forEach((el, i) => el.classList.toggle('ac-active', i === acIdx)); }
     function showDrop(q) {
-      if (!q) { drop.innerHTML = ''; drop.classList.remove('open'); return; }
+      if (!q) return closeDrop();
       const ql = q.toLowerCase();
-      const hits = allUnits.filter(u => u.name.toLowerCase().includes(ql)).slice(0, 10);
-      if (!hits.length) { drop.innerHTML = ''; drop.classList.remove('open'); return; }
-      drop.innerHTML = hits.map((u, i) => `<div class="ac-item" data-i="${i}"><span class="ac-name">${esc(u.name)}</span><span class="ac-fac">${esc(u.faction)}</span></div>`).join('');
-      drop.classList.add('open'); acIdx = -1;
-      drop.querySelectorAll('.ac-item').forEach((el, i) => {
-        el.onmousedown = e => { e.preventDefault(); fillFromUnit(hits[i]); };
-      });
+      curHits = allUnits.filter(u => u.name.toLowerCase().includes(ql)).slice(0, 12);
+      if (!curHits.length) return closeDrop();
+      drop.innerHTML = curHits.map((u, i) => `<div class="ac-item" data-i="${i}"><span class="ac-name">${esc(u.name)}</span><span class="ac-fac">${esc(u.faction)}</span></div>`).join('');
+      position(); drop.classList.add('open'); acIdx = -1;
+      drop.querySelectorAll('.ac-item').forEach((el, i) => { el.onmousedown = e => { e.preventDefault(); fillFromUnit(curHits[i]); }; });
     }
 
     nameInput.addEventListener('input', () => showDrop(nameInput.value.trim()));
+    nameInput.addEventListener('focus', () => { if (nameInput.value.trim()) showDrop(nameInput.value.trim()); });
     nameInput.addEventListener('keydown', e => {
-      const items = drop.querySelectorAll('.ac-item');
-      if (!items.length) return;
-      if (e.key === 'ArrowDown') { e.preventDefault(); acIdx = Math.min(acIdx + 1, items.length - 1); items.forEach((el, i) => el.classList.toggle('ac-active', i === acIdx)); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); acIdx = Math.max(acIdx - 1, 0); items.forEach((el, i) => el.classList.toggle('ac-active', i === acIdx)); }
-      else if (e.key === 'Enter' && acIdx >= 0) { e.preventDefault(); const hits = allUnits.filter(u => u.name.toLowerCase().includes(nameInput.value.trim().toLowerCase())).slice(0, 10); fillFromUnit(hits[acIdx]); }
-      else if (e.key === 'Escape') { drop.innerHTML = ''; drop.classList.remove('open'); }
+      if (!curHits.length || !drop.classList.contains('open')) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); acIdx = Math.min(acIdx + 1, curHits.length - 1); highlight(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); acIdx = Math.max(acIdx - 1, 0); highlight(); }
+      else if (e.key === 'Enter' && acIdx >= 0) { e.preventDefault(); fillFromUnit(curHits[acIdx]); }
+      else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeDrop(); }
     });
-    nameInput.addEventListener('blur', () => setTimeout(() => { drop.classList.remove('open'); }, 150));
+    nameInput.addEventListener('blur', () => setTimeout(closeDrop, 150));
+    const repos = () => { if (drop.classList.contains('open')) position(); };
+    o.querySelector('.modal').addEventListener('scroll', repos, true);
 
     nameInput.focus();
     o.querySelector('#mSave').onclick = () => {
