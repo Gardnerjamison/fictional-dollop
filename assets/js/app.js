@@ -356,7 +356,7 @@
       </div>
       <div class="card" style="margin-bottom:16px">
         <h3>Official points · Munitorum Field Manual v4.3</h3>
-        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Load datasheets with current points for the armies you play. Pick factions (or load all ${S.officialFactions().length}). Re-run any time to refresh after an update.</p>
+        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Load datasheets with current points <b>plus full stat lines (M/T/Sv/W/Ld/OC) and weapon profiles</b> for the armies you play. Pick factions (or load all ${S.officialFactions().length}). Already loaded an army before this update? Just re-run it to pull in the stats &amp; weapons.</p>
         <select id="mfmFactions" multiple size="6" style="height:auto">
           ${S.officialFactions().map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')}
         </select>

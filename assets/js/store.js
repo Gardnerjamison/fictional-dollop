@@ -221,13 +221,18 @@
     const src = global.POINTS_DATA || [];
     const want = factions && factions.length ? new Set(factions) : null;
     let added = 0, updated = 0;
+    const dsData = global.DATASHEET_DATA || {};
     src.forEach(u => {
       if (want && !want.has(u.faction)) return;
       const base = u.tiers[0] ? u.tiers[0].points : null;
       const existing = (data.datasheets || []).find(d => d.name === u.name && d.faction === u.faction && d.source === 'mfm');
+      const detail = dsData[u.faction + '||' + u.name] || {};
+      // Prefer freshly sourced stats/weapons; fall back to any existing values.
+      const stats = (detail.stats && Object.keys(detail.stats).length) ? detail.stats : (existing ? existing.stats : {});
+      const weapons = (detail.weapons && detail.weapons.length) ? detail.weapons : (existing ? existing.weapons : []);
       const rec = {
         name: u.name, faction: u.faction, points: base, tiers: u.tiers,
-        source: 'mfm', stats: existing ? existing.stats : {}, keywords: existing ? existing.keywords : [], abilities: existing ? existing.abilities : '',
+        source: 'mfm', stats, weapons, keywords: existing ? existing.keywords : [], abilities: existing ? existing.abilities : '',
       };
       if (existing) { rec.id = existing.id; updated++; } else { added++; }
       upsert('datasheets', rec);
