@@ -276,26 +276,67 @@
   };
 
   // ================= REFERENCE (datasheets) =================
+  const refFilters = { search: '', faction: '' };
+
+  function statBlock(st) {
+    if (!st) return '';
+    const keys = ['M', 'T', 'Sv', 'W', 'Ld', 'OC'];
+    const hasAny = keys.some(k => st[k]);
+    if (!hasAny) return '';
+    return `<div class="stat-block">${keys.map(k => `<div class="sb-cell"><div class="sb-val">${esc(st[k] || '—')}</div><div class="sb-key">${k}</div></div>`).join('')}</div>`;
+  }
+
+  function weaponTable(weapons) {
+    if (!weapons || !weapons.length) return '';
+    return `<div class="weapons-section">
+      <table class="weapons-table">
+        <thead><tr><th>Weapon</th><th>Range</th><th>A</th><th>BS/WS</th><th>S</th><th>AP</th><th>D</th><th class="wep-abil">Abilities</th></tr></thead>
+        <tbody>${weapons.map(w => `<tr class="${w.type === 'Melee' ? 'wep-melee' : 'wep-ranged'}">
+          <td><span class="wep-name">${esc(w.name)}</span>${w.type ? `<span class="wep-type">${esc(w.type)}</span>` : ''}</td>
+          <td>${esc(w.range || '—')}</td><td>${esc(w.attacks || '—')}</td><td>${esc(w.skill || '—')}</td>
+          <td>${esc(w.strength || '—')}</td><td>${esc(w.ap || '—')}</td><td>${esc(w.damage || '—')}</td>
+          <td class="wep-abil">${esc(w.abilities || '')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+
   function reference() {
-    const ds = S.list('datasheets').slice().sort((a, b) => a.name.localeCompare(b.name));
+    let ds = S.list('datasheets').slice().sort((a, b) => (a.faction || '').localeCompare(b.faction || '') || a.name.localeCompare(b.name));
+    const rf = refFilters;
+    const factions = [...new Set(ds.map(d => d.faction).filter(Boolean))].sort();
+    if (rf.faction) ds = ds.filter(d => d.faction === rf.faction);
+    if (rf.search) { const q = rf.search.toLowerCase(); ds = ds.filter(d => d.name.toLowerCase().includes(q) || (d.faction || '').toLowerCase().includes(q) || (d.keywords || []).some(k => k.toLowerCase().includes(q))); }
+
+    const fOpts = factions.map(f => `<option value="${esc(f)}" ${rf.faction === f ? 'selected' : ''}>${esc(f)}</option>`).join('');
     return `
       <div class="section-head"><h2>Reference · Datasheets</h2><button class="btn-primary" id="addDs">+ Datasheet</button></div>
-      <p class="muted" style="margin-bottom:14px;font-size:0.85rem">Game stats &amp; points for your units. Link these to collection entries so points roll up automatically.</p>
-      <div class="grid">
-        ${ds.length ? ds.map(d => `<div class="card">
-          <div class="card-top"><div class="card-name">${esc(d.name)}</div>${d.points != null ? `<span class="chip">${d.points} pts</span>` : ''}</div>
-          ${d.faction ? `<div class="card-faction">${esc(d.faction)}</div>` : ''}
-          ${d.tiers && d.tiers.length > 1 ? `<div class="card-meta">${d.tiers.map(t => `<span class="chip">${t.models} → ${t.points}</span>`).join('')}</div>` : ''}
-          ${d.source === 'mfm' ? '<span class="muted" style="font-size:0.72rem">MFM v4.3</span>' : ''}
-          ${d.stats ? `<div class="card-meta">${Object.entries(d.stats).filter(([, v]) => v).map(([k, v]) => `<span class="chip">${esc(k)} ${esc(v)}</span>`).join('')}</div>` : ''}
-          ${d.keywords && d.keywords.length ? `<div class="tag-list">${d.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join('')}</div>` : ''}
-          ${d.abilities ? `<div class="card-notes">${esc(d.abilities)}</div>` : ''}
-          <div class="card-actions"><button class="btn-secondary btn-sm" data-did="${d.id}">Edit</button><button class="btn-danger btn-sm" data-ddel="${d.id}">Delete</button></div>
-        </div>`).join('') : '<div class="empty"><div class="big">📋</div><p>No datasheets yet. Add unit stats/points or import them in Settings.</p></div>'}
-      </div>`;
+      <div class="filters">
+        <input type="search" id="rfSearch" placeholder="Search name, faction, keyword…" value="${esc(rf.search)}" />
+        <select id="rfFaction"><option value="">All Factions</option>${fOpts}</select>
+      </div>
+      ${ds.length ? ds.map(d => `<div class="ds-card">
+        <div class="ds-card-head">
+          <div>
+            <div class="card-name">${esc(d.name)}</div>
+            ${d.faction ? `<div class="card-faction">${esc(d.faction)}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            ${d.points != null ? `<span class="chip pts-chip">${d.points} pts</span>` : ''}
+            ${d.tiers && d.tiers.length > 1 ? `<div class="card-meta" style="justify-content:flex-end">${d.tiers.map(t => `<span class="chip">${t.models}m → ${t.points}</span>`).join('')}</div>` : ''}
+            ${d.source === 'mfm' ? '<span class="muted" style="font-size:0.7rem">MFM v4.3</span>' : ''}
+          </div>
+        </div>
+        ${statBlock(d.stats)}
+        ${weaponTable(d.weapons)}
+        ${d.keywords && d.keywords.length ? `<div class="tag-list" style="margin-top:6px">${d.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join('')}</div>` : ''}
+        ${d.abilities ? `<div class="card-notes" style="margin-top:6px">${esc(d.abilities)}</div>` : ''}
+        <div class="card-actions"><button class="btn-secondary btn-sm" data-did="${d.id}">Edit</button><button class="btn-danger btn-sm" data-ddel="${d.id}">Delete</button></div>
+      </div>`).join('') : '<div class="empty"><div class="big">📋</div><p>No datasheets yet. Add unit stats/points or import them in Settings.</p></div>'}`;
   }
   afterRender.reference = () => {
     $('#addDs').onclick = () => openDatasheetModal();
+    $('#rfSearch').oninput = e => { refFilters.search = e.target.value; render(); const el = $('#rfSearch'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
+    $('#rfFaction').onchange = e => { refFilters.faction = e.target.value; render(); };
     document.querySelectorAll('[data-did]').forEach(b => b.onclick = () => openDatasheetModal(b.dataset.did));
     document.querySelectorAll('[data-ddel]').forEach(b => b.onclick = () => { if (confirm('Delete datasheet?')) { S.remove('datasheets', b.dataset.ddel); render(); renderNav(); } });
   };
@@ -496,31 +537,78 @@ create policy "anon access" on collections
   }
 
   function openDatasheetModal(id) {
-    const d = id ? S.get('datasheets', id) : { stats: {} };
+    const d = id ? S.get('datasheets', id) : { stats: {}, weapons: [] };
     const st = d.stats || {};
+
+    const wepRow = (w = {}) => `
+      <div class="wep-row form-row" style="gap:4px;align-items:center;flex-wrap:nowrap">
+        <input type="text" class="w-name" placeholder="Weapon name" value="${esc(w.name || '')}" style="flex:2;min-width:100px">
+        <select class="w-type" style="flex:0 0 80px">
+          <option value="Ranged" ${w.type !== 'Melee' ? 'selected' : ''}>Ranged</option>
+          <option value="Melee" ${w.type === 'Melee' ? 'selected' : ''}>Melee</option>
+        </select>
+        <input type="text" class="w-range" placeholder="Range" value="${esc(w.range || '')}" style="flex:0 0 54px">
+        <input type="text" class="w-atk"  placeholder="A"     value="${esc(w.attacks || '')}" style="flex:0 0 44px">
+        <input type="text" class="w-skill" placeholder="BS"   value="${esc(w.skill || '')}" style="flex:0 0 44px">
+        <input type="text" class="w-str"  placeholder="S"     value="${esc(w.strength || '')}" style="flex:0 0 44px">
+        <input type="text" class="w-ap"   placeholder="AP"    value="${esc(w.ap || '')}" style="flex:0 0 44px">
+        <input type="text" class="w-dmg"  placeholder="D"     value="${esc(w.damage || '')}" style="flex:0 0 44px">
+        <input type="text" class="w-abil" placeholder="Abilities" value="${esc(w.abilities || '')}" style="flex:1;min-width:80px">
+        <button class="btn-danger btn-sm w-rm" style="flex:none">✕</button>
+      </div>`;
+
     const o = modal(`
       <h2>${id ? 'Edit Datasheet' : 'New Datasheet'}</h2>
       <div class="form-row">
-        <div class="field" style="flex:2"><label>Name *</label><input type="text" id="dName" value="${esc(d.name)}"></div>
+        <div class="field" style="flex:2"><label>Name *</label><input type="text" id="dName" value="${esc(d.name || '')}"></div>
         <div class="field"><label>Points</label><input type="number" id="dPoints" value="${d.points ?? ''}"></div>
       </div>
-      <div class="field"><label>Faction</label><input type="text" id="dFaction" value="${esc(d.faction)}"></div>
+      <div class="field"><label>Faction</label><input type="text" id="dFaction" value="${esc(d.faction || '')}"></div>
       <h3>Stat line</h3>
-      <div class="form-row">
-        ${['M', 'T', 'Sv', 'W', 'Ld', 'OC'].map(k => `<div class="field" style="min-width:60px"><label>${k}</label><input type="text" id="st_${k}" value="${esc(st[k] || '')}"></div>`).join('')}
+      <div class="form-row" style="flex-wrap:nowrap;gap:6px">
+        ${['M', 'T', 'Sv', 'W', 'Ld', 'OC'].map(k => `<div class="field" style="min-width:50px;flex:1"><label>${k}</label><input type="text" id="st_${k}" value="${esc(st[k] || '')}"></div>`).join('')}
       </div>
-      <div class="field"><label>Keywords (comma-separated)</label><input type="text" id="dKw" value="${esc((d.keywords || []).join(', '))}"></div>
-      <div class="field"><label>Abilities / weapons (free text)</label><textarea id="dAbil">${esc(d.abilities)}</textarea></div>
+      <h3 style="margin-bottom:6px">Weapons</h3>
+      <div style="overflow-x:auto">
+        <div style="font-size:0.7rem;color:var(--muted);display:flex;gap:4px;padding:0 0 2px;min-width:600px">
+          <span style="flex:2;min-width:100px">Name</span><span style="flex:0 0 80px">Type</span><span style="flex:0 0 54px">Range</span>
+          <span style="flex:0 0 44px">A</span><span style="flex:0 0 44px">BS/WS</span><span style="flex:0 0 44px">S</span>
+          <span style="flex:0 0 44px">AP</span><span style="flex:0 0 44px">D</span><span style="flex:1;min-width:80px">Abilities</span><span style="flex:none;width:36px"></span>
+        </div>
+        <div id="wepRows" style="display:flex;flex-direction:column;gap:4px;min-width:600px">${(d.weapons || []).map(wepRow).join('')}</div>
+      </div>
+      <button class="btn-ghost btn-sm" id="addWep" style="margin-top:6px">+ Add weapon</button>
+      <div class="field" style="margin-top:10px"><label>Keywords (comma-separated)</label><input type="text" id="dKw" value="${esc((d.keywords || []).join(', '))}"></div>
+      <div class="field"><label>Abilities / special rules</label><textarea id="dAbil">${esc(d.abilities || '')}</textarea></div>
       <div class="modal-actions"><button class="btn-secondary" id="dCancel">Cancel</button><button class="btn-primary" id="dSave">Save</button></div>
-    `);
+    `, true);
+
+    const bindWepRm = () => o.querySelectorAll('.w-rm').forEach(b => b.onclick = () => b.closest('.wep-row').remove());
+    o.querySelector('#addWep').onclick = () => {
+      const div = document.createElement('div'); div.innerHTML = wepRow();
+      o.querySelector('#wepRows').appendChild(div.firstElementChild); bindWepRm();
+    };
+    bindWepRm();
     o.querySelector('#dCancel').onclick = o._close;
     o.querySelector('#dSave').onclick = () => {
       const name = o.querySelector('#dName').value.trim(); if (!name) return;
       const stats = {}; ['M', 'T', 'Sv', 'W', 'Ld', 'OC'].forEach(k => { const v = o.querySelector('#st_' + k).value.trim(); if (v) stats[k] = v; });
+      const weapons = [...o.querySelector('#wepRows').children].map(row => ({
+        name: row.querySelector('.w-name').value.trim(),
+        type: row.querySelector('.w-type').value,
+        range: row.querySelector('.w-range').value.trim(),
+        attacks: row.querySelector('.w-atk').value.trim(),
+        skill: row.querySelector('.w-skill').value.trim(),
+        strength: row.querySelector('.w-str').value.trim(),
+        ap: row.querySelector('.w-ap').value.trim(),
+        damage: row.querySelector('.w-dmg').value.trim(),
+        abilities: row.querySelector('.w-abil').value.trim(),
+      })).filter(w => w.name);
       S.upsert('datasheets', {
         id, name, faction: o.querySelector('#dFaction').value.trim(),
         points: o.querySelector('#dPoints').value !== '' ? parseInt(o.querySelector('#dPoints').value) : null,
-        stats, keywords: o.querySelector('#dKw').value.split(',').map(s => s.trim()).filter(Boolean), abilities: o.querySelector('#dAbil').value.trim(),
+        stats, weapons, keywords: o.querySelector('#dKw').value.split(',').map(s => s.trim()).filter(Boolean),
+        abilities: o.querySelector('#dAbil').value.trim(),
       });
       o._close(); toast('Saved'); renderNav(); render();
     };
