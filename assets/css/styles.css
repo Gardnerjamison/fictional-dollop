@@ -189,6 +189,22 @@ tr:hover td { background: var(--surface); }
 .empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty .big { font-size: 2.6rem; margin-bottom: 10px; }
 
+/* ---------- Autocomplete ---------- */
+.ac-drop { display: none; position: absolute; top: 100%; left: 0; right: 0; background: var(--surface2); border: 1px solid var(--border); border-radius: 0 0 8px 8px; z-index: 400; max-height: 220px; overflow-y: auto; box-shadow: var(--shadow); }
+.ac-drop.open { display: block; }
+.ac-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; cursor: pointer; font-size: 0.86rem; gap: 10px; }
+.ac-item:hover, .ac-item.ac-active { background: var(--surface3); }
+.ac-name { color: var(--text); font-weight: 600; }
+.ac-fac { color: var(--gold); font-size: 0.75rem; white-space: nowrap; }
+
+/* ---------- Army builder suggestions ---------- */
+.suggest-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.suggest-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 5px 9px; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.8rem; transition: border-color 0.15s, background 0.15s; text-align: left; }
+.suggest-chip:hover { border-color: var(--gold); background: var(--surface3); }
+.sc-name { color: var(--text); font-weight: 600; }
+.sc-pts { color: var(--gold); font-size: 0.72rem; }
+.sc-status { font-size: 0.66rem; border-radius: 6px; padding: 1px 5px; font-weight: 700; text-transform: uppercase; }
+
 /* ---------- Misc ---------- */
 .muted { color: var(--muted); }
 .tag-list { display: flex; gap: 5px; flex-wrap: wrap; }

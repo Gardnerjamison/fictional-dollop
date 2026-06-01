@@ -452,12 +452,16 @@ create policy "anon access" on collections
     const o = modal(`
       <h2>${id ? 'Edit Unit' : 'Add Unit'}</h2>
       <div class="form-row">
-        <div class="field" style="flex:2"><label>Unit name *</label><input type="text" id="mName" value="${esc(m.name)}"></div>
+        <div class="field" style="flex:2;position:relative">
+          <label>Unit name *</label>
+          <input type="text" id="mName" value="${esc(m.name || '')}" autocomplete="off" placeholder="Start typing a unit name…">
+          <div id="mNameDrop" class="ac-drop"></div>
+        </div>
         <div class="field"><label>Models</label><input type="number" id="mQty" min="1" value="${m.modelCount || 1}"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Faction</label><input type="text" id="mFaction" list="facList" value="${esc(m.faction)}"><datalist id="facList">${S.factionNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
-        <div class="field"><label>Sub-faction</label><input type="text" id="mSub" value="${esc(m.subfaction)}"></div>
+        <div class="field"><label>Faction</label><input type="text" id="mFaction" list="facList" value="${esc(m.faction || '')}"><datalist id="facList">${S.factionNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+        <div class="field"><label>Sub-faction</label><input type="text" id="mSub" value="${esc(m.subfaction || '')}"></div>
       </div>
       <div class="form-row">
         <div class="field"><label>Unit type / role</label><input type="text" id="mType" value="${esc(m.unitType)}" placeholder="Troops, HQ, …"></div>
@@ -483,7 +487,49 @@ create policy "anon access" on collections
       <div class="modal-actions"><button class="btn-secondary" id="mCancel">Cancel</button><button class="btn-primary" id="mSave">Save</button></div>
     `);
     o.querySelector('#mCancel').onclick = o._close;
-    o.querySelector('#mName').focus();
+
+    // ---- Unit name autocomplete ----
+    const allUnits = window.POINTS_DATA || [];
+    const nameInput = o.querySelector('#mName');
+    const drop = o.querySelector('#mNameDrop');
+    let acIdx = -1;
+
+    function fillFromUnit(u) {
+      nameInput.value = u.name;
+      o.querySelector('#mFaction').value = u.faction || '';
+      // auto-fill points from first tier
+      const pts = u.tiers && u.tiers[0] ? u.tiers[0].points : null;
+      if (pts != null) o.querySelector('#mPoints').value = pts;
+      // link datasheet if one exists
+      const ds = S.list('datasheets').find(d => d.name === u.name && d.faction === u.faction);
+      if (ds) o.querySelector('#mDs').value = ds.id;
+      drop.innerHTML = ''; drop.classList.remove('open'); acIdx = -1;
+    }
+
+    function showDrop(q) {
+      if (!q) { drop.innerHTML = ''; drop.classList.remove('open'); return; }
+      const ql = q.toLowerCase();
+      const hits = allUnits.filter(u => u.name.toLowerCase().includes(ql)).slice(0, 10);
+      if (!hits.length) { drop.innerHTML = ''; drop.classList.remove('open'); return; }
+      drop.innerHTML = hits.map((u, i) => `<div class="ac-item" data-i="${i}"><span class="ac-name">${esc(u.name)}</span><span class="ac-fac">${esc(u.faction)}</span></div>`).join('');
+      drop.classList.add('open'); acIdx = -1;
+      drop.querySelectorAll('.ac-item').forEach((el, i) => {
+        el.onmousedown = e => { e.preventDefault(); fillFromUnit(hits[i]); };
+      });
+    }
+
+    nameInput.addEventListener('input', () => showDrop(nameInput.value.trim()));
+    nameInput.addEventListener('keydown', e => {
+      const items = drop.querySelectorAll('.ac-item');
+      if (!items.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); acIdx = Math.min(acIdx + 1, items.length - 1); items.forEach((el, i) => el.classList.toggle('ac-active', i === acIdx)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); acIdx = Math.max(acIdx - 1, 0); items.forEach((el, i) => el.classList.toggle('ac-active', i === acIdx)); }
+      else if (e.key === 'Enter' && acIdx >= 0) { e.preventDefault(); const hits = allUnits.filter(u => u.name.toLowerCase().includes(nameInput.value.trim().toLowerCase())).slice(0, 10); fillFromUnit(hits[acIdx]); }
+      else if (e.key === 'Escape') { drop.innerHTML = ''; drop.classList.remove('open'); }
+    });
+    nameInput.addEventListener('blur', () => setTimeout(() => { drop.classList.remove('open'); }, 150));
+
+    nameInput.focus();
     o.querySelector('#mSave').onclick = () => {
       const name = o.querySelector('#mName').value.trim(); if (!name) { o.querySelector('#mName').focus(); return; }
       const csv = v => v.split(',').map(s => s.trim()).filter(Boolean);
@@ -617,40 +663,79 @@ create policy "anon access" on collections
   function openListModal(id) {
     const L = id ? S.get('armyLists', id) : { units: [] };
     const minis = S.list('minis');
-    const miniOpts = minis.map(m => `<option value="${m.id}">${esc(m.name)}${m.points ? ' (' + m.points + ')' : ''}</option>`).join('');
-    const unitRow = (u) => {
-      const m = S.get('minis', u.miniId);
-      return `<div class="form-row" data-unit>
-        <div class="field" style="flex:2"><select class="u-mini">${minis.map(x => `<option value="${x.id}" ${x.id === u.miniId ? 'selected' : ''}>${esc(x.name)}${x.points ? ' (' + x.points + ')' : ''}</option>`).join('')}</select></div>
-        <div class="field" style="max-width:90px"><input type="number" class="u-count" min="1" value="${u.count || 1}"></div>
-        <button class="btn-danger btn-sm u-rm" style="align-self:center">✕</button>
-      </div>`;
-    };
+    const unitRow = (u) => `<div class="form-row" data-unit>
+      <div class="field" style="flex:2"><select class="u-mini">${minis.map(x => `<option value="${x.id}" ${x.id === u.miniId ? 'selected' : ''}>${esc(x.name)}${x.points ? ' (' + x.points + ')' : ''}</option>`).join('')}</select></div>
+      <div class="field" style="max-width:90px"><input type="number" class="u-count" min="1" value="${u.count || 1}"></div>
+      <button class="btn-danger btn-sm u-rm" style="align-self:center">✕</button>
+    </div>`;
+
     const o = modal(`
       <h2>${id ? 'Edit Army List' : 'New Army List'}</h2>
       <div class="form-row">
-        <div class="field" style="flex:2"><label>List name *</label><input type="text" id="lName" value="${esc(L.name)}"></div>
+        <div class="field" style="flex:2"><label>List name *</label><input type="text" id="lName" value="${esc(L.name || '')}"></div>
         <div class="field"><label>Points limit</label><input type="number" id="lLimit" value="${L.pointsLimit ?? ''}"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Faction</label><input type="text" id="lFaction" value="${esc(L.faction)}"></div>
-        <div class="field"><label>Detachment</label><input type="text" id="lDet" value="${esc(L.detachment)}"></div>
+        <div class="field"><label>Faction</label><input type="text" id="lFaction" list="lFacList" value="${esc(L.faction || '')}">
+          <datalist id="lFacList">${S.factionNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist></div>
+        <div class="field"><label>Detachment</label><input type="text" id="lDet" value="${esc(L.detachment || '')}"></div>
       </div>
       <h3>Units</h3>
       ${minis.length ? `<div id="units">${(L.units || []).map(unitRow).join('')}</div>
       <button class="btn-ghost btn-sm" id="addUnit" style="margin-top:6px">+ Add unit</button>` : '<p class="muted" style="font-size:0.84rem">Add some units to your Collection first.</p>'}
-      <div class="field" style="margin-top:14px"><label>Notes</label><textarea id="lNotes">${esc(L.notes)}</textarea></div>
+      <div id="suggestBox" style="margin-top:14px"></div>
+      <div class="field" style="margin-top:8px"><label>Notes</label><textarea id="lNotes">${esc(L.notes || '')}</textarea></div>
       <div class="modal-actions"><button class="btn-secondary" id="lCancel">Cancel</button><button class="btn-primary" id="lSave">Save</button></div>
     `, true);
-    const bindRm = () => o.querySelectorAll('.u-rm').forEach(b => b.onclick = () => b.closest('[data-unit]').remove());
+
+    const bindRm = () => o.querySelectorAll('.u-rm').forEach(b => b.onclick = () => { b.closest('[data-unit]').remove(); refreshSuggest(); });
+
+    function addUnitRow(miniId) {
+      if (!o.querySelector('#units')) return;
+      const div = document.createElement('div');
+      div.innerHTML = unitRow({ miniId: miniId || minis[0].id, count: 1 });
+      o.querySelector('#units').appendChild(div.firstElementChild);
+      bindRm(); refreshSuggest();
+    }
+
+    function refreshSuggest() {
+      const box = o.querySelector('#suggestBox');
+      if (!minis.length || !box) return;
+      const faction = o.querySelector('#lFaction').value.trim();
+      // IDs already in the list
+      const inList = new Set([...(o.querySelector('#units') ? o.querySelector('#units').querySelectorAll('.u-mini') : [])].map(s => s.value));
+      // Candidates: collection units matching faction (or all if no faction set), not already in list
+      const candidates = minis.filter(m => !inList.has(m.id) && (!faction || m.faction === faction));
+      if (!candidates.length) { box.innerHTML = ''; return; }
+      box.innerHTML = `
+        <div style="font-size:0.78rem;color:var(--gold);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px">
+          Suggested from your collection${faction ? ' · ' + esc(faction) : ''}
+        </div>
+        <div class="suggest-chips">${candidates.slice(0, 16).map(m => `
+          <button class="suggest-chip" data-mid="${m.id}">
+            <span class="sc-name">${esc(m.name)}</span>
+            ${m.points ? `<span class="sc-pts">${m.points * (m.modelCount || 1)} pts</span>` : ''}
+            <span class="sc-status status-${m.status}">${S.STATUS_LABEL[m.status] || ''}</span>
+          </button>`).join('')}
+          ${candidates.length > 16 ? `<span class="muted" style="font-size:0.78rem;align-self:center">+${candidates.length - 16} more</span>` : ''}
+        </div>`;
+      box.querySelectorAll('.suggest-chip').forEach(b => {
+        b.onclick = () => { addUnitRow(b.dataset.mid); };
+      });
+    }
+
     if (minis.length) {
-      o.querySelector('#addUnit').onclick = () => { const div = document.createElement('div'); div.innerHTML = unitRow({ miniId: minis[0].id, count: 1 }); o.querySelector('#units').appendChild(div.firstElementChild); bindRm(); };
+      o.querySelector('#addUnit').onclick = () => addUnitRow();
       bindRm();
+      o.querySelector('#lFaction').addEventListener('input', refreshSuggest);
+      refreshSuggest();
     }
     o.querySelector('#lCancel').onclick = o._close;
     o.querySelector('#lSave').onclick = () => {
       const name = o.querySelector('#lName').value.trim(); if (!name) return;
-      const units = minis.length ? [...o.querySelector('#units').children].map(row => ({ miniId: row.querySelector('.u-mini').value, count: parseInt(row.querySelector('.u-count').value) || 1 })) : (L.units || []);
+      const units = minis.length && o.querySelector('#units')
+        ? [...o.querySelector('#units').children].map(row => ({ miniId: row.querySelector('.u-mini').value, count: parseInt(row.querySelector('.u-count').value) || 1 }))
+        : (L.units || []);
       S.upsert('armyLists', {
         id, name, pointsLimit: o.querySelector('#lLimit').value !== '' ? parseInt(o.querySelector('#lLimit').value) : null,
         faction: o.querySelector('#lFaction').value.trim(), detachment: o.querySelector('#lDet').value.trim(),
