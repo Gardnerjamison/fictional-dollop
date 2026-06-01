@@ -463,9 +463,6 @@ create policy "anon access" on collections
         <div class="field"><label>Sub-faction</label><input type="text" id="mSub" value="${esc(m.subfaction || '')}"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Kit / box</label><input type="text" id="mKit" value="${esc(m.kit || '')}"></div>
-      </div>
-      <div class="form-row">
         <div class="field"><label>Paint status</label><select id="mStatus">${statusOpts}</select></div>
         <div class="field"><label>Points (per model)</label><input type="number" id="mPoints" min="0" value="${m.points ?? ''}"></div>
       </div>
@@ -542,7 +539,6 @@ create policy "anon access" on collections
         id, name,
         modelCount: Math.max(1, parseInt(o.querySelector('#mQty').value) || 1),
         faction: o.querySelector('#mFaction').value.trim(), subfaction: o.querySelector('#mSub').value.trim(),
-        kit: o.querySelector('#mKit').value.trim(),
         status: o.querySelector('#mStatus').value,
         points: o.querySelector('#mPoints').value !== '' ? parseInt(o.querySelector('#mPoints').value) : null,
         datasheetId: o.querySelector('#mDs').value || null, recipeId: o.querySelector('#mRec').value || null,
