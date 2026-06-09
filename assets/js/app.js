@@ -374,7 +374,8 @@
       </div>
       <div class="card" style="margin-bottom:16px">
         <h3>🤖 AI model recognition</h3>
-        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Snap or upload a photo of a mini and Claude will identify the unit and faction for you. Your key is stored only in this browser and sent only to Anthropic.</p>
+        <p class="muted" style="font-size:0.82rem;margin-bottom:6px">Snap or upload a photo of a mini and Claude will identify the unit and faction. Best results: model in focus, plain-ish background, decent light. Works on painted and grey plastic.</p>
+        <p class="muted" style="font-size:0.82rem;margin-bottom:10px">Get a free API key at <b style="color:var(--text)">console.anthropic.com</b> → API Keys. Costs fractions of a cent per photo. Key is stored only in this browser, sent only to Anthropic.</p>
         <div class="field"><label>Anthropic API key</label><input type="password" id="aiKey" value="${esc(localStorage.getItem('wh_ai_key') || '')}" placeholder="sk-ant-…" autocomplete="off"></div>
         <div class="form-row"><button class="btn-secondary" id="aiSave">Save key</button></div>
         <div id="aiStatus" class="muted" style="font-size:0.82rem;margin-top:8px"></div>
@@ -464,15 +465,17 @@ create policy "anon access" on collections
     const o = modal(`
       <h2>${id ? 'Edit Unit' : 'Add Unit'}</h2>
       ${!id && localStorage.getItem('wh_ai_key') ? `
-      <div id="aiRecogBox" style="margin-bottom:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
-        <div style="font-size:0.78rem;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:7px">AI Model Recognition</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn-gold btn-sm" id="aiCamera">📷 Take photo</button>
-          <button class="btn-secondary btn-sm" id="aiUpload">🖼 Upload image</button>
-          <input type="file" id="aiFile" accept="image/*" capture="environment" class="hidden">
-          <span id="aiRecogStatus" class="muted" style="font-size:0.8rem"></span>
+      <div id="aiRecogBox" style="margin-bottom:14px;padding:12px 14px;background:linear-gradient(135deg,#1a1a22,#1f1f2a);border:1px solid #3a3a50;border-radius:10px">
+        <div style="font-size:0.75rem;color:var(--gold);font-weight:700;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px">🤖 Identify with AI</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button id="aiCamera" style="padding:14px 10px;font-size:1rem;background:var(--gold);color:#1a1a1a;border:none;border-radius:8px;font-weight:700;cursor:pointer;touch-action:manipulation">📷 Camera</button>
+          <button id="aiUpload" style="padding:14px 10px;font-size:1rem;background:var(--surface3);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700;cursor:pointer;touch-action:manipulation">🖼 Photo library</button>
         </div>
-        <div id="aiPreviewWrap" style="margin-top:8px;display:none"><img id="aiPreview" style="max-height:120px;border-radius:6px;border:1px solid var(--border)"></div>
+        <input type="file" id="aiFile" accept="image/*" class="hidden">
+        <div id="aiPreviewWrap" style="display:none;margin-bottom:8px">
+          <img id="aiPreview" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;border:1px solid var(--border);background:var(--surface2)">
+        </div>
+        <div id="aiRecogStatus" style="font-size:0.82rem;color:var(--muted);min-height:1.2em"></div>
       </div>` : ''}
       <div class="form-row">
         <div class="field" style="flex:2">
@@ -565,59 +568,103 @@ create policy "anon access" on collections
       const aiPrev = o.querySelector('#aiPreview');
       const aiPrevWrap = o.querySelector('#aiPreviewWrap');
 
+      // Resize image to max 900px on longest side using canvas before encoding.
+      // iPhone photos are 10-12 MB; this brings them to ~100-200 KB, 10× faster + cheaper.
+      function resizeToBase64(file) {
+        return new Promise((res, rej) => {
+          const img = new Image();
+          const url = URL.createObjectURL(file);
+          img.onload = () => {
+            const MAX = 900;
+            let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > MAX || h > MAX) { const s = MAX / Math.max(w, h); w = Math.round(w * s); h = Math.round(h * s); }
+            const c = document.createElement('canvas'); c.width = w; c.height = h;
+            c.getContext('2d').drawImage(img, 0, 0, w, h);
+            URL.revokeObjectURL(url);
+            res(c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+          };
+          img.onerror = rej;
+          img.src = url;
+        });
+      }
+
       async function recognise(file) {
         const key = localStorage.getItem('wh_ai_key');
         if (!key) return;
-        aiStat.textContent = 'Recognising…'; aiStat.style.color = 'var(--muted)';
-        // Show preview
-        const previewUrl = URL.createObjectURL(file);
-        aiPrev.src = previewUrl; aiPrevWrap.style.display = '';
-        // Convert to base64
-        const b64 = await new Promise((res, rej) => {
-          const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(file);
-        });
-        const mediaType = file.type || 'image/jpeg';
+        aiStat.textContent = 'Resizing & sending…'; aiStat.style.color = 'var(--muted)';
+        aiPrev.src = URL.createObjectURL(file); aiPrevWrap.style.display = '';
+
         try {
+          const b64 = await resizeToBase64(file);
+
+          // Build a compact unit list grouped by faction for the prompt.
+          // Keeps the prompt grounded to real unit names — biggest accuracy lever.
+          const unitList = Object.entries(
+            allUnits.reduce((acc, u) => { (acc[u.faction] = acc[u.faction] || []).push(u.name); return acc; }, {})
+          ).map(([fac, names]) => `${fac}: ${names.join(', ')}`).join('\n');
+
+          const prompt = `You are identifying a Warhammer 40,000 miniature from a photo.
+
+Here is the complete list of known units grouped by faction:
+${unitList}
+
+Look at the miniature in the photo and pick the BEST MATCH from the list above.
+- If it is clearly painted/assembled, you should be able to identify it.
+- Unpainted grey plastic is harder — do your best based on the model's silhouette and details.
+- Only return "Unknown" if you have genuinely no idea.
+
+Reply with ONLY these two lines, nothing else:
+Unit: <exact unit name from the list, or your best guess if not on list>
+Faction: <faction name>`;
+
           const resp = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'anthropic-dangerous-direct-browser-access': 'true' },
             body: JSON.stringify({
               model: 'claude-haiku-4-5-20251001',
-              max_tokens: 120,
-              messages: [{
-                role: 'user',
-                content: [
-                  { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-                  { type: 'text', text: 'This is a Warhammer 40,000 miniature. Identify the unit name and faction. Reply with exactly two lines:\nUnit: <unit name>\nFaction: <faction name>\nIf you cannot identify it, reply: Unit: Unknown\nFaction: Unknown' }
-                ]
-              }]
+              max_tokens: 80,
+              messages: [{ role: 'user', content: [
+                { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+                { type: 'text', text: prompt }
+              ]}]
             })
           });
-          if (!resp.ok) { const t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0, 120)); }
+          if (!resp.ok) { const t = await resp.text(); throw new Error(resp.status + ': ' + t.slice(0, 160)); }
           const data = await resp.json();
           const text = data.content[0].text.trim();
           const unitM = text.match(/Unit:\s*(.+)/i);
-          const facM = text.match(/Faction:\s*(.+)/i);
-          const unitName = unitM ? unitM[1].trim() : '';
-          const faction = facM ? facM[1].trim() : '';
+          const facM  = text.match(/Faction:\s*(.+)/i);
+          const unitName = (unitM ? unitM[1] : '').trim();
+          const faction  = (facM  ? facM[1]  : '').trim();
+
           if (!unitName || unitName.toLowerCase() === 'unknown') {
-            aiStat.textContent = 'Could not identify — try a clearer photo.'; aiStat.style.color = 'var(--accent2)'; return;
+            aiStat.textContent = 'Could not identify — try a clearer or closer photo.';
+            aiStat.style.color = 'var(--accent2)'; return;
           }
-          aiStat.textContent = `Identified: ${unitName} (${faction})`; aiStat.style.color = 'var(--done)';
-          // Try to match against known units for autocomplete fill
+
+          // Match against known list: exact → name contains → name contained in response
           const ql = unitName.toLowerCase();
           const hit = allUnits.find(u => u.name.toLowerCase() === ql)
             || allUnits.find(u => u.name.toLowerCase().includes(ql))
             || allUnits.find(u => ql.includes(u.name.toLowerCase()));
-          if (hit) { fillFromUnit(hit); }
-          else { nameInput.value = unitName; o.querySelector('#mFaction').value = faction; }
+
+          if (hit) {
+            fillFromUnit(hit);
+            aiStat.textContent = `Matched: ${hit.name} (${hit.faction})`;
+          } else {
+            nameInput.value = unitName; o.querySelector('#mFaction').value = faction;
+            aiStat.textContent = `Identified: ${unitName} (${faction}) — not in points data, filled manually`;
+          }
+          aiStat.style.color = 'var(--done)';
         } catch (err) {
-          aiStat.textContent = 'Error: ' + err.message; aiStat.style.color = 'var(--accent2)';
-          console.error(err);
+          aiStat.textContent = 'Error: ' + err.message;
+          aiStat.style.color = 'var(--accent2)'; console.error(err);
         }
       }
 
-      aiCam.onclick = () => { aiFile.removeAttribute('capture'); aiFile.setAttribute('capture', 'environment'); aiFile.click(); };
+      // On iOS, two separate input elements with/without capture is the most reliable way
+      // to offer both camera and gallery without extra taps.
+      aiCam.onclick   = () => { aiFile.setAttribute('capture', 'environment'); aiFile.click(); };
       aiUpBtn.onclick = () => { aiFile.removeAttribute('capture'); aiFile.click(); };
       aiFile.onchange = e => { const f = e.target.files[0]; if (f) recognise(f); e.target.value = ''; };
     }
