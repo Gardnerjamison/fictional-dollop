@@ -2,1419 +2,1708 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#10182c">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>SPITZ SIEGE</title>
 <style>
-  *{margin:0;padding:0;box-sizing:border-box;}
-  html,body{width:100%;height:100%;background:#0a0e1a;overflow:hidden;}
-  body{
-    font-family:'Courier New',monospace;
-    display:flex;align-items:center;justify-content:center;
-    -webkit-font-smoothing:none;
-    color:#fff;
-    user-select:none;-webkit-user-select:none;
-  }
-  #wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
-  canvas#screen{
-    image-rendering:pixelated;image-rendering:crisp-edges;
-    display:block;background:#10182c;
-    cursor:crosshair;
-  }
-  /* ---- Retro UI ---- */
-  .panel{
-    background:#141a2e;
-    border:3px solid #fff;
-    box-shadow:0 0 0 3px #000, 4px 4px 0 3px rgba(0,0,0,.5);
-    image-rendering:pixelated;
-  }
-  .ovl{position:absolute;z-index:5;}
-  /* HUD */
-  #hud{top:10px;left:10px;padding:8px 12px;font-size:13px;line-height:1.5;letter-spacing:1px;display:none;}
-  #hud.show{display:block;}
-  #hud .row{display:flex;gap:14px;align-items:center;}
-  #hud b{color:#ffd23f;}
-  .pill{background:#000;border:2px solid #3a4a6a;padding:1px 6px;}
-  /* bottom bars */
-  #buildBar,#battleBar{
-    bottom:12px;left:50%;transform:translateX(-50%);
-    padding:8px 10px;display:none;gap:8px;align-items:center;flex-wrap:wrap;
-    max-width:96vw;justify-content:center;
-  }
-  #buildBar.show,#battleBar.show{display:flex;}
-  .tbtn{
-    background:#1d2742;border:2px solid #46598a;color:#cfe0ff;
-    padding:6px 9px;font-family:inherit;font-weight:bold;font-size:11px;
-    cursor:pointer;letter-spacing:1px;min-width:62px;text-align:center;line-height:1.25;
-  }
-  .tbtn small{display:block;font-size:9px;color:#8fa3c8;font-weight:normal;}
-  .tbtn:hover{border-color:#ffd23f;}
-  .tbtn.sel{border-color:#36e07a;background:#173a26;color:#bdfdd2;}
-  .tbtn.lock{opacity:.4;cursor:not-allowed;}
-  .tbtn.go{background:#2a5d2a;border-color:#7be07b;color:#eaffea;min-width:120px;font-size:13px;padding:8px;}
-  .tbtn.go:hover{background:#36e07a;color:#04110a;}
-  .sep{width:2px;align-self:stretch;background:#2c3a5a;margin:0 2px;}
-  .lbl{font-size:10px;color:#8fa3c8;letter-spacing:1px;align-self:center;padding:0 2px;text-transform:uppercase;}
-  /* top-right buttons */
-  #sys{top:10px;right:10px;display:flex;gap:6px;}
-  #sys .tbtn{min-width:auto;padding:6px 8px;}
-  /* Title */
-  #title{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
-  #title.hide{display:none;}
-  #title h1{
-    font-size:clamp(38px,9vw,92px);letter-spacing:6px;
-    color:#ffd23f;text-shadow:4px 4px 0 #b3471e,8px 8px 0 #000;
-    margin-bottom:4px;font-weight:900;
-  }
-  #title .sub{color:#9fd3ff;letter-spacing:4px;font-size:clamp(11px,2vw,16px);margin-bottom:30px;text-shadow:2px 2px 0 #000;}
-  #title .menu{display:flex;flex-direction:column;gap:14px;}
-  #title .mbtn{
-    background:#141a2e;border:3px solid #fff;box-shadow:0 0 0 3px #000;
-    color:#fff;font-family:inherit;font-weight:bold;font-size:18px;letter-spacing:3px;
-    padding:14px 50px;cursor:pointer;transition:transform .08s;
-  }
-  #title .mbtn:hover{background:#ffd23f;color:#141a2e;transform:scale(1.04);}
-  #title .ft{margin-top:34px;color:#5e6f93;font-size:11px;letter-spacing:2px;}
-  /* Tutorial box */
-  #tut{bottom:84px;left:50%;transform:translateX(-50%);max-width:560px;width:90vw;padding:14px 16px;display:none;z-index:8;}
-  #tut.show{display:block;}
-  #tut .who{color:#ffd23f;font-weight:bold;letter-spacing:2px;font-size:12px;margin-bottom:6px;}
-  #tut .msg{font-size:14px;line-height:1.5;color:#eaf2ff;}
-  #tut .nx{margin-top:10px;text-align:right;}
-  /* Banner / toast */
-  #banner{top:42%;left:50%;transform:translate(-50%,-50%);z-index:9;text-align:center;display:none;
-    padding:18px 40px;}
-  #banner.show{display:block;animation:pop .3s;}
-  #banner h2{font-size:clamp(26px,6vw,52px);letter-spacing:4px;color:#ffd23f;text-shadow:3px 3px 0 #000;}
-  #banner p{margin-top:8px;color:#cfe0ff;letter-spacing:2px;font-size:14px;}
-  @keyframes pop{from{transform:translate(-50%,-50%) scale(.6);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
-  /* Game over */
-  #over{position:absolute;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(5,8,16,.72);}
-  #over.show{display:flex;}
-  #over .box{padding:40px 50px;text-align:center;}
-  #over h1{font-size:clamp(34px,8vw,72px);letter-spacing:4px;margin-bottom:10px;text-shadow:4px 4px 0 #000;}
-  #over p{font-size:16px;color:#cfe0ff;margin-bottom:26px;letter-spacing:1px;}
-  .hintbar{font-size:11px;color:#8fa3c8;letter-spacing:1px;text-align:center;width:100%;margin-top:2px;}
-  kbd{background:#000;border:1px solid #46598a;border-radius:3px;padding:0 5px;color:#cfe0ff;font-family:inherit;}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;background:#04010e;overflow:hidden;}
+body{font-family:'Courier New',monospace;display:flex;align-items:center;justify-content:center;
+  -webkit-font-smoothing:none;color:#e0d4c0;user-select:none;-webkit-user-select:none;}
+#wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+canvas#screen{image-rendering:pixelated;image-rendering:crisp-edges;display:block;cursor:crosshair;}
+.panel{background:#0e0820;border:2px solid #5a4a6a;
+  box-shadow:0 0 0 1px #000, 0 0 0 3px #2a1e3a, 3px 3px 0 3px rgba(0,0,0,.7);
+  image-rendering:pixelated;}
+.panel::before{content:'';position:absolute;inset:0;border:1px solid rgba(255,220,120,0.08);pointer-events:none;}
+.ovl{position:absolute;z-index:5;}
+.gothic{position:relative;}
+.gothic::after{content:'\2726';position:absolute;top:-10px;right:-6px;color:#5a4060;font-size:10px;}
+#hud{top:10px;left:10px;padding:6px 10px;font-size:12px;line-height:1.6;letter-spacing:1px;display:none;position:absolute;z-index:5;}
+#hud.show{display:block;}
+#hud .row{display:flex;gap:10px;align-items:center;}
+.pill{background:#08041a;border:1px solid #3a2a50;padding:1px 7px;color:#c8b890;}
+#buildBar,#battleBar{bottom:12px;left:50%;transform:translateX(-50%);
+  padding:8px 10px;display:none;gap:6px;align-items:center;flex-wrap:wrap;
+  max-width:96vw;justify-content:center;position:absolute;z-index:5;}
+#buildBar.show,#battleBar.show{display:flex;}
+.tbtn{background:#0e0820;border:1px solid #4a3a5a;color:#b8a8c8;
+  padding:5px 8px;font-family:inherit;font-weight:bold;font-size:11px;
+  cursor:pointer;letter-spacing:1px;min-width:60px;text-align:center;line-height:1.3;
+  position:relative;}
+.tbtn::after{content:'';position:absolute;inset:0;border-top:1px solid rgba(255,255,255,0.06);}
+.tbtn small{display:block;font-size:9px;color:#7a6a8a;font-weight:normal;}
+.tbtn:hover{border-color:#d4a820;color:#e8d4a0;background:#1a1030;}
+.tbtn.sel{border-color:#c87030;background:#1e0e08;color:#e8c090;}
+.tbtn.lock{opacity:.35;cursor:not-allowed;}
+.tbtn.go{background:#0e1e0e;border-color:#406040;color:#80c080;min-width:130px;font-size:12px;padding:8px;border-width:2px;}
+.tbtn.go:hover{background:#406040;color:#e0ffe0;}
+.tbtn.copbtn{background:#1a0a28;border-color:#8a3090;color:#d080ff;min-width:90px;}
+.tbtn.copbtn.ready{border-color:#d020ff;color:#f0a0ff;animation:pulse 1s infinite;}
+.tbtn.copbtn.lock{opacity:.4;}
+@keyframes pulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px #a040d0;}}
+.sep{width:1px;align-self:stretch;background:#2a1a3a;margin:0 2px;}
+.lbl{font-size:9px;color:#6a5a7a;letter-spacing:2px;align-self:center;padding:0 2px;text-transform:uppercase;}
+#sys{top:10px;right:10px;display:flex;gap:6px;position:absolute;z-index:5;}
+#sys .tbtn{min-width:auto;padding:5px 8px;}
+#title{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;}
+#title.hide{display:none;}
+#title h1{font-size:clamp(36px,8vw,80px);letter-spacing:8px;
+  color:#d4a820;text-shadow:3px 3px 0 #6a0808,6px 6px 0 #000,0 0 40px rgba(200,80,10,0.4);
+  margin-bottom:6px;font-weight:900;}
+#title .sub{color:#7a6090;letter-spacing:4px;font-size:clamp(10px,1.8vw,14px);margin-bottom:28px;}
+#title .menu{display:flex;flex-direction:column;gap:12px;}
+#title .mbtn{background:#0e0820;border:2px solid #4a3a5a;
+  box-shadow:0 0 0 1px #000,3px 3px 0 #000,0 0 20px rgba(80,0,120,0.3);
+  color:#b8a8c8;font-family:inherit;font-weight:bold;font-size:16px;letter-spacing:3px;
+  padding:12px 44px;cursor:pointer;transition:all .1s;}
+#title .mbtn:hover{background:#1e1038;border-color:#d4a820;color:#e8d4a0;
+  box-shadow:0 0 0 1px #000,3px 3px 0 #000,0 0 24px rgba(180,120,0,0.4);}
+#title .ft{margin-top:28px;color:#3a2a4a;font-size:10px;letter-spacing:2px;}
+#story{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(4,1,14,0.96);}
+#story.show{display:flex;}
+#story .sbox{max-width:500px;width:90vw;padding:30px 36px;text-align:center;}
+#story h2{color:#d4a820;letter-spacing:6px;font-size:20px;margin-bottom:20px;text-shadow:2px 2px 0 #000;}
+#story .stxt{color:#b8a8c8;font-size:13px;line-height:1.8;letter-spacing:1px;min-height:120px;text-align:left;}
+#story .sbtns{margin-top:18px;display:flex;gap:10px;justify-content:center;}
+#cmdSelect{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(4,1,14,0.97);}
+#cmdSelect.show{display:flex;flex-direction:column;}
+#cmdSelect h2{color:#d4a820;letter-spacing:6px;font-size:18px;margin-bottom:6px;text-shadow:2px 2px 0 #000;text-align:center;}
+#cmdSelect .csub{color:#6a5a7a;font-size:10px;letter-spacing:3px;margin-bottom:20px;text-align:center;}
+#cmdSelect .cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+.cmd-card{background:#0e0820;border:2px solid #3a2a5a;padding:16px;width:170px;cursor:pointer;position:relative;text-align:center;transition:all .12s;}
+.cmd-card:hover,.cmd-card.sel{border-color:#d4a820;background:#1a1030;box-shadow:0 0 20px rgba(180,120,0,0.25);}
+.cmd-card canvas{display:block;margin:0 auto 10px;image-rendering:pixelated;}
+.cmd-card .cname{color:#e8d4a0;font-weight:bold;font-size:13px;letter-spacing:2px;margin-bottom:2px;}
+.cmd-card .ctitle{color:#7a6a8a;font-size:9px;letter-spacing:2px;margin-bottom:8px;}
+.cmd-card .cpass{color:#a090b8;font-size:9px;line-height:1.5;margin-bottom:6px;min-height:32px;}
+.cmd-card .cpow{color:#c060f0;font-size:9px;line-height:1.5;border-top:1px solid #2a1a3a;padding-top:6px;}
+.cmd-card .cbio{color:#4a3a5a;font-size:8px;margin-top:6px;font-style:italic;}
+#cmdSelect .cfoot{margin-top:16px;text-align:center;}
+#upgradeScreen{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;background:rgba(4,1,14,0.97);}
+#upgradeScreen.show{display:flex;flex-direction:column;}
+#upgradeScreen h2{color:#d4a820;letter-spacing:6px;font-size:18px;margin-bottom:4px;text-shadow:2px 2px 0 #000;text-align:center;}
+#upgradeScreen .usub{color:#6a5a7a;font-size:10px;letter-spacing:3px;margin-bottom:20px;text-align:center;}
+#upgradeScreen .ucards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.upg-card{background:#0e0820;border:2px solid #3a2a5a;padding:18px 14px;width:160px;cursor:pointer;text-align:center;transition:all .12s;}
+.upg-card:hover{border-color:#d4a820;background:#1a1030;box-shadow:0 0 16px rgba(180,120,0,0.2);}
+.upg-card .uicon{font-size:28px;margin-bottom:10px;}
+.upg-card .uname{color:#e8d4a0;font-weight:bold;font-size:11px;letter-spacing:2px;margin-bottom:6px;}
+.upg-card .udesc{color:#8a7a9a;font-size:9px;line-height:1.6;}
+#tut{bottom:80px;left:50%;transform:translateX(-50%);max-width:520px;width:90vw;padding:12px 14px;display:none;z-index:8;position:absolute;}
+#tut.show{display:block;}
+#tut .who{color:#d4a820;font-weight:bold;letter-spacing:2px;font-size:11px;margin-bottom:5px;}
+#tut .msg{font-size:12px;line-height:1.6;color:#c8b8d8;}
+#tut .nx{margin-top:8px;text-align:right;}
+#banner{top:38%;left:50%;transform:translate(-50%,-50%);z-index:9;text-align:center;display:none;padding:16px 36px;position:absolute;}
+#banner.show{display:block;animation:pop .25s;}
+#banner h2{font-size:clamp(22px,5vw,46px);letter-spacing:4px;color:#d4a820;text-shadow:3px 3px 0 #000;}
+#banner p{margin-top:6px;color:#8a7a9a;letter-spacing:2px;font-size:12px;}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(.5);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+#over{position:absolute;inset:0;z-index:12;display:none;align-items:center;justify-content:center;background:rgba(4,1,10,0.85);}
+#over.show{display:flex;}
+#over .box{padding:36px 48px;text-align:center;}
+#over h1{font-size:clamp(30px,7vw,64px);letter-spacing:4px;margin-bottom:10px;text-shadow:4px 4px 0 #000;}
+#over p{font-size:14px;color:#8a7a9a;margin-bottom:24px;letter-spacing:1px;}
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="screen"></canvas>
 
-  <!-- HUD -->
-  <div id="hud" class="ovl panel">
+  <div id="hud" class="panel ovl">
     <div class="row">
-      <span style="color:#ff9a52">🐕 CORGIS</span>
-      <span class="pill" id="hudGold">💰 0</span>
       <span class="pill" id="hudRound">ROUND 1</span>
       <span class="pill" id="hudPhase">BUILD</span>
-      <span class="pill" id="hudTimer">⏱ 30</span>
+      <span class="pill" id="hudGold">GOLD 0</span>
+      <span class="pill" id="hudCo">CO: 0%</span>
     </div>
   </div>
 
-  <!-- System buttons -->
   <div id="sys" class="ovl">
-    <button class="tbtn" id="muteBtn" title="Mute">🔊</button>
-    <button class="tbtn" id="menuBtn" title="Menu">MENU</button>
+    <button class="tbtn" id="muteBtn">SND</button>
+    <button class="tbtn" id="quitBtn">QUIT</button>
   </div>
 
-  <!-- Build toolbar -->
-  <div id="buildBar" class="ovl panel">
-    <span class="lbl">Walls</span>
-    <button class="tbtn matbtn sel" data-mat="wood">WOOD<small>$6 · HP60</small></button>
-    <button class="tbtn matbtn" data-mat="stone">STONE<small>$12 · HP130</small></button>
-    <button class="tbtn matbtn" data-mat="iron">IRON<small>$22 · HP220</small></button>
+  <div id="buildBar" class="panel">
+    <span class="lbl">BLOCK</span>
+    <button class="tbtn" data-mat="wood" id="bWood">WOOD<small>10g</small></button>
+    <button class="tbtn" data-mat="stone" id="bStone">STONE<small>25g</small></button>
+    <button class="tbtn" data-mat="iron" id="bIron">IRON<small>50g</small></button>
     <span class="sep"></span>
-    <span class="lbl">Army</span>
-    <button class="tbtn unitbtn" data-unit="soldier">SOLDIER<small>$15</small></button>
-    <button class="tbtn unitbtn" data-unit="archer">ARCHER<small>$22</small></button>
-    <button class="tbtn unitbtn" data-unit="knight">KNIGHT<small>$38</small></button>
+    <span class="lbl">UNIT</span>
+    <button class="tbtn" data-unit="soldier" id="uSoldier">SOLDIER<small>15g</small></button>
+    <button class="tbtn" data-unit="archer" id="uArcher">ARCHER<small>25g</small></button>
+    <button class="tbtn" data-unit="knight" id="uKnight">KNIGHT<small>40g</small></button>
     <span class="sep"></span>
-    <button class="tbtn go" id="doneBtn">⚔ DONE — FIGHT!</button>
+    <button class="tbtn" id="eraseBtn">ERASE</button>
+    <button class="tbtn go" id="goBtn">COMMENCE SIEGE</button>
   </div>
 
-  <!-- Battle toolbar -->
-  <div id="battleBar" class="ovl panel">
-    <span class="lbl">Ammo</span>
-    <button class="tbtn ammobtn sel" data-ammo="standard">CANNON<small>balanced</small></button>
-    <button class="tbtn ammobtn" data-ammo="heavy">HEAVY<small>big hit</small></button>
-    <button class="tbtn ammobtn" data-ammo="cluster">CLUSTER<small>splits ×3</small></button>
-    <button class="tbtn ammobtn" data-ammo="bomb">BOMB<small>explosive</small></button>
+  <div id="battleBar" class="panel">
+    <span class="lbl">AMMO</span>
+    <button class="tbtn sel" data-ammo="ball" id="aBall">CANNON<small>basic</small></button>
+    <button class="tbtn" data-ammo="bomb" id="aBomb">BOMB<small>splash</small></button>
+    <button class="tbtn" data-ammo="spread" id="aSpread">GRAPE<small>spread</small></button>
     <span class="sep"></span>
-    <span class="lbl">Shots</span>
-    <span class="pill" id="shotsLeft">●●●●●</span>
+    <span class="pill" id="shotsLeft">SHOTS 6</span>
+    <span class="sep"></span>
+    <button class="tbtn copbtn lock" id="coBtn">CO POWER<small id="coCharge">&#9617;&#9617;&#9617;&#9617;&#9617;</small></button>
   </div>
 
-  <!-- Tutorial -->
-  <div id="tut" class="ovl panel">
-    <div class="who">⚔ COMMANDER</div>
+  <div id="tut" class="panel gothic">
+    <div class="who" id="tutWho">LADY BORKSWORTH</div>
     <div class="msg" id="tutMsg"></div>
-    <div class="nx"><button class="tbtn" id="tutNext">NEXT ▶</button></div>
+    <div class="nx"><button class="tbtn" id="tutNext">NEXT &raquo;</button></div>
   </div>
 
-  <!-- Banner -->
-  <div id="banner" class="ovl panel"><h2 id="bannerH"></h2><p id="bannerP"></p></div>
+  <div id="banner" class="panel gothic">
+    <h2 id="bannerH">VICTORY</h2>
+    <p id="bannerP">The walls have fallen.</p>
+  </div>
 
-  <!-- Title -->
-  <div id="title" class="ovl">
-    <h1>SPITZ&nbsp;SIEGE</h1>
-    <div class="sub">CELTIC CORGIS · vs · VIKING LAIKAS</div>
+  <div id="title">
+    <h1>SPITZ SIEGE</h1>
+    <div class="sub">CASTLE FANGHOLD &mdash; A GOTHIC SIEGE</div>
     <div class="menu">
-      <button class="mbtn" id="playBtn">▶ PLAY</button>
-      <button class="mbtn" id="tutBtn">📖 TUTORIAL</button>
+      <button class="mbtn" id="playBtn">PLAY</button>
+      <button class="mbtn" id="tutBtn">TUTORIAL</button>
     </div>
-    <div class="ft">DRAG to aim the cannon · build walls · command your army</div>
+    <div class="ft">RAMPART &times; ANGRY BIRDS &times; ADVANCED WARS</div>
   </div>
 
-  <!-- Game Over -->
-  <div id="over" class="ovl">
-    <div class="box panel">
-      <h1 id="overH"></h1>
-      <p id="overP"></p>
-      <button class="tbtn go" id="againBtn" style="margin:0 auto;">↻ PLAY AGAIN</button>
+  <div id="story">
+    <div class="sbox panel gothic">
+      <h2>THE SIEGE OF FANGHOLD</h2>
+      <div class="stxt" id="storyText"></div>
+      <div class="sbtns">
+        <button class="tbtn" id="storySkip">SKIP</button>
+        <button class="tbtn go" id="storyCont" style="display:none">CONTINUE</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cmdSelect">
+    <h2>CHOOSE YOUR COMMANDER</h2>
+    <div class="csub">ADVANCED WARS STYLE &mdash; EACH HAS A UNIQUE CO POWER</div>
+    <div class="cards" id="cmdCards"></div>
+    <div class="cfoot"><button class="tbtn go" id="cmdChoose">CHOOSE</button></div>
+  </div>
+
+  <div id="upgradeScreen">
+    <h2>CHOOSE AN UPGRADE</h2>
+    <div class="usub">SPOILS OF WAR &mdash; PICK ONE</div>
+    <div class="ucards" id="upgCards"></div>
+  </div>
+
+  <div id="over">
+    <div class="box panel gothic">
+      <h1 id="overH">DEFEAT</h1>
+      <p id="overP">Fanghold has fallen.</p>
+      <button class="mbtn" id="overBtn">RETURN TO TITLE</button>
     </div>
   </div>
 </div>
 
 <script>
-"use strict";
-/* ============================================================= *
- *  SPITZ SIEGE  —  a 2D side-view siege game
- *  (Rampart x Angry Birds x King Arthur's World)
- *  Single-file, low-res pixel buffer upscaled for a SNES/DS look.
- * ============================================================= */
+'use strict';
+//=================================================================
+// SPITZ SIEGE — gothic 2D siege game
+//=================================================================
 
-/* ---------- Display / buffer ---------- */
+// ---- Canvas / buffer ----
 const VIEW_W = 480, VIEW_H = 270;
-const WORLD_W = 960;
-const GROUND_Y = 212;          // top of the grass
-const TILE = 16;
-
 const screen = document.getElementById('screen');
-const sx = screen.getContext('2d');
-const buf = document.createElement('canvas');
-buf.width = VIEW_W; buf.height = VIEW_H;
-const g = buf.getContext('2d');
+const g = screen.getContext('2d');
+g.imageSmoothingEnabled = false;
 
-let scale = 1, offX = 0, offY = 0;
+const GROUND_Y = 196;     // ground top in buffer
+const TILE = 16;          // block size
+const WORLD_W = 760;      // world width (scrollable) — kept tight so cannon aim is forgiving
+let camX = 0;
+
+let scale = 1;
 function resize(){
   const w = window.innerWidth, h = window.innerHeight;
   scale = Math.max(1, Math.floor(Math.min(w/VIEW_W, h/VIEW_H)));
-  screen.width = w; screen.height = h;
-  offX = Math.floor((w - VIEW_W*scale)/2);
-  offY = Math.floor((h - VIEW_H*scale)/2);
-  sx.imageSmoothingEnabled = false;
+  screen.width = VIEW_W; screen.height = VIEW_H;
+  screen.style.width = (VIEW_W*scale)+'px';
+  screen.style.height = (VIEW_H*scale)+'px';
+  g.imageSmoothingEnabled = false;
 }
-window.addEventListener('resize', resize); resize();
+window.addEventListener('resize', resize);
+resize();
 
-/* ---------- Config ---------- */
+// ---- Materials / units / ammo ----
 const MAT = {
-  wood:  {hp:60,  cost:6,  col:'#9a5a2b', col2:'#7a4420', edge:'#c98a4a'},
-  stone: {hp:130, cost:12, col:'#7f8a9c', col2:'#5d6776', edge:'#aab6c6'},
-  iron:  {hp:220, cost:22, col:'#5a6170', col2:'#3f4654', edge:'#9aa6bb'},
+  wood:  {cost:10, hp:60,  name:'WOOD'},
+  stone: {cost:25, hp:140, name:'STONE'},
+  iron:  {cost:50, hp:300, name:'IRON'},
 };
 const UNIT = {
-  soldier:{hp:70,  cost:15, spd:0.42, dmg:8,  cd:38,  rng:0,   melee:11, w:10,h:18, name:'Soldier'},
-  archer: {hp:42,  cost:22, spd:0.40, dmg:9,  cd:64,  rng:104, melee:11, w:9, h:18, name:'Archer'},
-  knight: {hp:160, cost:38, spd:0.32, dmg:16, cd:50,  rng:0,   melee:13, w:13,h:20, name:'Knight'},
+  soldier:{cost:15, hp:50,  dmg:8,  rng:14, spd:0.32, name:'SOLDIER', col:'#2a2840'},
+  archer: {cost:25, hp:34,  dmg:11, rng:90, spd:0.26, name:'ARCHER',  col:'#1e2c14'},
+  knight: {cost:40, hp:110, dmg:18, rng:16, spd:0.22, name:'KNIGHT',  col:'#3a4050'},
 };
 const AMMO = {
-  standard:{dmg:55, spd:1.0,  r:3, name:'Cannon'},
-  heavy:   {dmg:110,spd:0.82, r:4, name:'Heavy'},
-  cluster: {dmg:34, spd:1.05, r:3, name:'Cluster', split:3},
-  bomb:    {dmg:46, spd:0.94, r:4, name:'Bomb', boom:64},
-};
-const CANNON_G = 0.12;   // cannonball gravity
-const DEBRIS_G = 0.34;
-const MAXPULL  = 116;
-const SHOTS_PER_BATTLE = 5;
-const BUILD_TIME = 30;
-const BATTLE_TIME = 26;
-
-/* ---------- Audio (tiny synth) ---------- */
-let actx=null, muted=false;
-function ac(){ if(!actx){ try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){} } return actx; }
-function beep(freq, dur=0.08, type='square', vol=0.13, slide=0){
-  if(muted) return; const a=ac(); if(!a) return;
-  const o=a.createOscillator(), gn=a.createGain();
-  o.type=type; o.frequency.value=freq;
-  if(slide) o.frequency.exponentialRampToValueAtTime(Math.max(40,freq+slide), a.currentTime+dur);
-  gn.gain.value=vol; gn.gain.exponentialRampToValueAtTime(0.0001, a.currentTime+dur);
-  o.connect(gn); gn.connect(a.destination); o.start(); o.stop(a.currentTime+dur);
-}
-function noise(dur=0.16, vol=0.18){
-  if(muted) return; const a=ac(); if(!a) return;
-  const n=Math.floor(a.sampleRate*dur); const b=a.createBuffer(1,n,a.sampleRate); const d=b.getChannelData(0);
-  for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*(1-i/n);
-  const s=a.createBufferSource(); s.buffer=b; const gn=a.createGain(); gn.gain.value=vol;
-  const f=a.createBiquadFilter(); f.type='lowpass'; f.frequency.value=900;
-  s.connect(f); f.connect(gn); gn.connect(a.destination); s.start();
-}
-const SFX={
-  fire(){ beep(220,0.18,'square',0.16,-160); noise(0.12,0.12); },
-  place(){ beep(440,0.05,'square',0.1); },
-  pick(){ beep(620,0.04,'square',0.08); },
-  hit(){ noise(0.1,0.14); beep(160,0.06,'square',0.08,-60); },
-  destroy(){ noise(0.22,0.2); beep(120,0.16,'sawtooth',0.12,-70); },
-  arrow(){ beep(900,0.05,'square',0.05,-300); },
-  win(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.16,'square',0.14),i*120)); },
-  lose(){ [392,330,262,196].forEach((f,i)=>setTimeout(()=>beep(f,0.2,'sawtooth',0.13),i*150)); },
+  ball:  {dmg:52,  splash:16, name:'CANNON'},
+  bomb:  {dmg:42,  splash:34, name:'BOMB'},
+  spread:{dmg:26,  splash:0,  name:'GRAPE', pellets:5},
 };
 
-/* ---------- Game state ---------- */
-const ST = {TITLE:'title', BUILD:'build', BATTLE:'battle', OVER:'over'};
-let state = ST.TITLE;
-let tutorial = null;           // tutorial controller or null
+// ---- Commander system ----
+const COMMANDERS = {
+  borksworth: {name:'Lady Borksworth', title:'Celtic Siege-Master', col:'#c85a2a',
+    passive:'RAMPART: +1 shot/battle', powerName:'CELTIC FURY',
+    powerDesc:'Next 2 shots deal 3× damage', extraShots:1, bonusDmg:0,
+    speedBonus:0, bio:'She never surrendered a castle. Or a tennis ball.',
+    chargeRate: (dmg)=>dmg/10, maxCharge:100, breed:'corgi'},
+  ironpaw: {name:'Bork Ironpaw', title:'Norse Warchief', col:'#5a8fc8',
+    passive:'HEAVY ORD.: +25 cannon dmg', powerName:'BARRAGE',
+    powerDesc:'Fire 3 spread shots instantly', extraShots:0, bonusDmg:25,
+    speedBonus:0, bio:"His howl brought down more walls than any siege engine.",
+    chargeRate: (dmg,blocks)=>(blocks||0)*25, maxCharge:100, breed:'laika'},
+  pharound: {name:'Pharound Rex', title:'Desert Pharaoh', col:'#c8a020',
+    passive:'SWIFT SANDS: units +35% speed', powerName:'DESERT WRATH',
+    powerDesc:'All enemies stunned 3s; King -40 HP', extraShots:0, bonusDmg:0,
+    speedBonus:0.35, bio:"Ancient. Inscrutable. Offended by rain.",
+    chargeRate: (dmg,blocks,kills)=>(kills||0)*33, maxCharge:100, breed:'pharaoh'},
+};
+let selectedCommander = 'borksworth';
+let pendingCommander = 'borksworth';
+let coCharge = 0;
+let coActive = 0;     // frames remaining of active CO visual flash
+let coPowerUses = 0;  // shots remaining for celtic fury
+let stunTimer = 0;    // frames of pharound wrath stun on enemy units
+
+// ---- Upgrades ----
+const UPGRADES_POOL = [
+  {id:'iron_walls',   name:'IRON WALLS',   desc:'+50% block max HP',          icon:'🏰'},
+  {id:'veterans',     name:'VETERANS',     desc:'Units: +35% HP & +20% dmg',  icon:'⚔'},
+  {id:'ammo_cache',   name:'AMMO CACHE',   desc:'+1 shot per battle',         icon:'●'},
+  {id:'master_gunner',name:'MASTER GUNNER',desc:'+25 cannon damage',          icon:'✦'},
+  {id:'royal_guard',  name:'ROYAL GUARD',  desc:'King +100 HP; restore 50',   icon:'♛'},
+  {id:'swift_march',  name:'SWIFT MARCH',  desc:'Units 40% faster',           icon:'»'},
+  {id:'barricade',    name:'BARRICADE',    desc:'6 free stone blocks each build', icon:'▪'},
+  {id:'berserker',    name:'BERSERKER',    desc:'Units: 2× dmg, -50% HP', icon:'†'},
+];
+let ownedUpgrades = [];
+let upgradeChoices = [];
+function hasUpg(id){ return ownedUpgrades.indexOf(id) >= 0; }
+
+// ---- Game state ----
+const PHASE = {TITLE:0, STORY:1, CMD:2, BUILD:3, BATTLE:4, UPGRADE:5, OVER:6};
+let phase = PHASE.TITLE;
 let round = 1;
-let phaseTime = 0;             // seconds remaining in current phase
-let paused = false;
-
-let players = null;
-let projectiles = [];
-let units = [];
-let debris = [];
-let particles = [];
-let floaters = [];
-let camX = 0, camTargetX = 0;
-let shake = 0, flash = 0, slowmo=0;
+let gold = 120;
 let frame = 0;
+let isTutorial = false;
+let selMat = 'stone';
+let selUnit = null;
+let selAmmo = 'ball';
+let eraseMode = false;
+let shotsLeft = 0;
+let muted = false;
+let screenFlash = 0;
 
-// build UI selection
-let curMat = 'wood';
-let curAmmo = 'standard';
-let shotsLeft = SHOTS_PER_BATTLE;
+// player object
+function newKing(side, col){
+  return {side, col, x: side==='left'? 70 : WORLD_W-70, y: GROUND_Y-22,
+    hp:300, maxhp:300, w:18, h:22, dead:false};
+}
+let player, enemy;
+let pBlocks = [], eBlocks = [];
+let pUnits = [], eUnits = [];
+let projectiles = [];   // cannonballs + arrows
+let particles = [];
+let floaters = [];      // damage numbers
 
-// aiming
-let aim = {active:false, sx:0, sy:0, mx:0, my:0};
-let mouseWorld = {x:0,y:0};
-let hoverCell = null;
+// zones
+const P_ZONE = {x0:24, x1:300};      // player build zone
+const E_ZONE = {x0:WORLD_W-300, x1:WORLD_W-24};
 
-function key(gx,gy){ return gx+'_'+gy; }
-function cellAt(x,y){ return {gx:Math.floor(x/TILE), gy:Math.floor((GROUND_Y - y)/TILE)}; }
-function blockXY(gx,gy){ return {x:gx*TILE, y:GROUND_Y-(gy+1)*TILE}; }
-
-function makePlayer(side){
-  const isL = side==='L';
-  return {
-    side, isL,
-    gold: 70,
-    cells: new Map(),                 // "gx_gy" -> block
-    king: {x: isL?116:WORLD_W-116, hp:300, max:300, shake:0},
-    cannon: {x: isL?42:WORLD_W-42, y:GROUND_Y-30, ang:isL?-42:-138},
-    spawnX: isL?150:WORLD_W-150,
-    dir: isL?1:-1,
-    zone: isL?[80,360]:[WORLD_W-360, WORLD_W-80],
-    queue: [],                        // unit types queued for this battle
-    cannonCD: 0,
-  };
+// ---- Bats (visual) ----
+const bats = [];
+function initBats(){
+  bats.length = 0;
+  for(let i=0;i<10;i++) bats.push({
+    x: Math.random()*WORLD_W, y: 20+Math.random()*90,
+    vx: (0.3+Math.random()*0.4)*(Math.random()<0.5?1:-1),
+    t: Math.random()*6.28
+  });
+}
+function updateBats(){
+  for(const b of bats){
+    b.x += b.vx; b.t += 0.18;
+    b.y += Math.sin(b.t*0.5)*0.3;
+    if(b.x < -30) b.x = WORLD_W+10;
+    if(b.x > WORLD_W+30) b.x = -10;
+  }
+}
+function drawBats(){
+  for(const b of bats){
+    const flap = Math.sin(b.t)*4;
+    const bx = Math.round(b.x - camX);
+    const by = Math.round(b.y);
+    if(bx < -40 || bx > VIEW_W+40) continue;
+    g.fillStyle = '#1a0828';
+    g.fillRect(bx-1, by, 3, 2);
+    const wl = 4 + (Math.abs(flap)|0);
+    g.fillRect(bx - wl - 1, by - (flap>0?1:0), wl, 1);
+    g.fillRect(bx + 2, by - (flap>0?1:0), wl, 1);
+  }
 }
 
-function startGame(isTut){
-  tutorial = isTut ? makeTutorial() : null;
-  round = 1;
-  players = {L: makePlayer('L'), R: makePlayer('R')};
-  projectiles=[]; units=[]; debris=[]; particles=[]; floaters=[];
-  shake=0; flash=0; slowmo=0; camX=0; camTargetX=0;
-  curMat='wood'; curAmmo='standard';
-  if(isTut){ players.L.gold = 120; players.R.gold = 0; }
-  // give the AI a little starter wall so the field reads well
-  if(!isTut) aiSeedWall();
-  enterBuild();
-  document.getElementById('title').classList.add('hide');
-  document.getElementById('over').classList.remove('show');
-  document.getElementById('hud').classList.add('show');
-  refreshMatUI();
+//=================================================================
+// Audio (tiny beeps)
+//=================================================================
+let actx = null;
+function beep(freq, dur, type, vol){
+  if(muted) return;
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = actx.createOscillator(), gn = actx.createGain();
+    o.type = type||'square'; o.frequency.value = freq;
+    gn.gain.value = (vol||0.06);
+    o.connect(gn); gn.connect(actx.destination);
+    o.start();
+    gn.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (dur||0.08));
+    o.stop(actx.currentTime + (dur||0.08));
+  }catch(e){}
 }
 
-function enterBuild(){
-  state = ST.BUILD;
-  phaseTime = BUILD_TIME;
-  // income each round (not first)
-  if(round>1){ players.L.gold += 40 + round*6; players.R.gold += 40 + round*6; }
-  players.L.queue = []; players.R.queue = [];
-  shotsLeft = SHOTS_PER_BATTLE;
-  camTargetX = clampCam(players.L.king.x - VIEW_W/2);
-  showBar('build');
-  if(tutorial) tutorial.onPhase('build');
-  refreshHUD();
+//=================================================================
+// Block / unit factories (apply upgrades)
+//=================================================================
+function blockMaxHp(mat){
+  let hp = MAT[mat].hp;
+  if(hasUpg('iron_walls')) hp = Math.round(hp*1.5);
+  return hp;
 }
-
-function startBattle(){
-  if(state!==ST.BUILD) return;
-  state = ST.BATTLE;
-  phaseTime = BATTLE_TIME;
-  shotsLeft = SHOTS_PER_BATTLE;
-  // AI plans its army & build refinements right before the clash
-  if(!tutorial) aiBuildPhase();
-  // AI cannon: limited shots + opening delay so the player isn't bombed instantly
-  players.R.cannonCD = 150;
-  players.R.aiShots = tutorial ? 0 : (3 + Math.floor(round*0.8));
-  // turn queues into a spawn schedule
-  scheduleSpawns(players.L);
-  scheduleSpawns(players.R);
-  showBar('battle');
-  banner('FIGHT!', 'Drag from your cannon to aim');
-  if(tutorial) tutorial.onPhase('battle');
-  SFX.fire();
-  refreshHUD();
+function makeBlock(mat, gx, gy, side){
+  const max = blockMaxHp(mat);
+  return {mat, x:gx, y:gy, side, hp:max, max, hit:0};
 }
-
-function endBattle(){
-  // resolve round; check victory handled elsewhere
-  units = []; projectiles = projectiles.filter(p=>false);
-  round++;
-  enterBuild();
-  banner('ROUND '+round, 'Rebuild and reinforce!');
-}
-
-/* ---------- Spawning units ---------- */
-function scheduleSpawns(pl){
-  pl._toSpawn = pl.queue.map((t,i)=>({type:t, at: 18 + i*26}));
-  pl._spawnFrame = 0;
-}
-function spawnUnit(pl, type){
+function unitStats(type){
   const u = UNIT[type];
-  units.push({
-    side: pl.side, type,
-    x: pl.spawnX, y: GROUND_Y - u.h,
-    hp: u.hp, max: u.hp,
-    dir: pl.dir,
-    cd: Math.floor(Math.random()*20),
-    anim: Math.random()*6|0,
-    state:'march',
-  });
+  let hp = u.hp, dmg = u.dmg, spd = u.spd;
+  if(hasUpg('veterans')){ hp = Math.round(hp*1.35); dmg = Math.round(dmg*1.2); }
+  if(hasUpg('berserker')){ hp = Math.round(hp*0.5); dmg = dmg*2; }
+  if(hasUpg('swift_march')) spd *= 1.4;
+  return {hp, dmg, spd};
+}
+function makeUnit(type, x, side){
+  const u = UNIT[type], st = unitStats(type);
+  let spd = st.spd;
+  // commander speed bonus applies to player units only
+  if(side==='left') spd *= (1 + COMMANDERS[selectedCommander].speedBonus);
+  return {type, side, x, y:GROUND_Y-12, hp:st.hp, maxhp:st.hp, dmg:st.dmg,
+    rng:u.rng, spd, col:u.col, cd:0, dead:false, target:null, anim:Math.random()*6.28, stunned:0};
 }
 
-/* ============================================================= *
- *  INPUT
- * ============================================================= */
-function toWorld(e){
-  const r = screen.getBoundingClientRect();
-  const px = (e.clientX - r.left - offX)/scale;
-  const py = (e.clientY - r.top  - offY)/scale;
-  return {x: px + camX, y: py, bx:px, by:py};
-}
-screen.addEventListener('mousemove', e=>{
-  const w = toWorld(e); mouseWorld = w;
-  if(state===ST.BUILD){
-    const c = cellAt(w.x, w.y);
-    hoverCell = c;
+//=================================================================
+// Particles & floaters
+//=================================================================
+function spawnParticles(x,y,n,col,spd){
+  for(let i=0;i<n;i++){
+    const a = Math.random()*6.28, s = (spd||1.5)*Math.random();
+    particles.push({x,y,vx:Math.cos(a)*s, vy:Math.sin(a)*s-1, life:20+Math.random()*15, col});
   }
-  if(aim.active){ aim.mx=w.x; aim.my=w.y; }
-});
-screen.addEventListener('mousedown', e=>{
-  if(paused) return;
-  const w = toWorld(e);
-  if(state===ST.BUILD){
-    handleBuildClick(w, e.button);
-  } else if(state===ST.BATTLE){
-    if(e.button===0 && shotsLeft>0){
-      aim.active=true; aim.sx=w.x; aim.sy=w.y; aim.mx=w.x; aim.my=w.y;
+}
+function floater(x,y,txt,col){
+  floaters.push({x,y,txt,col:col||'#fff',life:40});
+}
+
+//=================================================================
+// Damage helpers + CO charge
+//=================================================================
+function damageBlock(b, dmg){
+  b.hp -= dmg; b.hit = 10;
+  if(b.side==='right'){ // damage to ENEMY block earns charge for some COs
+    const cmd = COMMANDERS[selectedCommander];
+    coCharge = Math.min(cmd.maxCharge, coCharge + cmd.chargeRate(dmg,1,0));
+  }
+  if(b.hp <= 0){
+    spawnParticles(b.x+TILE/2, b.y+TILE/2, 10, '#6a5a78', 2);
+    beep(120,0.1,'square',0.05);
+  }
+}
+function damageUnit(u, dmg, fromPlayer){
+  u.hp -= dmg;
+  floater(u.x, u.y-14, '-'+Math.round(dmg), fromPlayer?'#ffd060':'#ff6060');
+  if(u.hp <= 0 && !u.dead){
+    u.dead = true;
+    spawnParticles(u.x, u.y-6, 12, '#aa3030', 2);
+    if(fromPlayer && u.side==='right'){
+      const cmd = COMMANDERS[selectedCommander];
+      coCharge = Math.min(cmd.maxCharge, coCharge + cmd.chargeRate(0,0,1));
     }
   }
-});
-window.addEventListener('mouseup', e=>{
-  if(aim.active){
-    aim.active=false;
-    fireFromAim();
-  }
-});
-screen.addEventListener('contextmenu', e=>{ e.preventDefault();
-  if(state===ST.BUILD){ const w=toWorld(e); removeBlockAt(w); }
-});
-// keyboard camera pan + pause
-const keys={};
-window.addEventListener('keydown', e=>{
-  keys[e.key.toLowerCase()]=true;
-  if(e.key==='p'||e.key==='P') paused=!paused;
-  if(e.code==='Space' && state===ST.BUILD){ e.preventDefault(); startBattle(); }
-});
-window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
-
-/* ---------- Build interactions ---------- */
-function inZone(pl, x){ return x>=pl.zone[0] && x<pl.zone[1]; }
-function handleBuildClick(w, btn){
-  const pl = players.L;
-  if(btn!==0){ removeBlockAt(w); return; }
-  const c = cellAt(w.x, w.y);
-  if(c.gy<0 || c.gy>9) return;
-  const bx = blockXY(c.gx,c.gy);
-  if(!inZone(pl, bx.x+TILE/2)){ floater(bx.x, bx.y-8, 'OUT OF ZONE', '#ff6b6b'); return; }
-  const k = key(c.gx,c.gy);
-  if(pl.cells.has(k)){ // remove on click too (toggle)
-    removeBlockAt(w); return;
-  }
-  // support rule: ground row or block below
-  const supported = c.gy===0 || pl.cells.has(key(c.gx,c.gy-1));
-  if(!supported){ floater(bx.x, bx.y-8, 'NEEDS SUPPORT', '#ffd23f'); return; }
-  const m = MAT[curMat];
-  if(pl.gold < m.cost){ floater(bx.x, bx.y-8, 'NO GOLD', '#ff6b6b'); return; }
-  pl.gold -= m.cost;
-  pl.cells.set(k, {gx:c.gx, gy:c.gy, x:bx.x, y:bx.y, mat:curMat, hp:m.hp, max:m.hp, hit:0});
-  SFX.place();
-  if(tutorial) tutorial.note('place');
-  refreshHUD();
 }
-function removeBlockAt(w){
-  const pl = players.L;
-  const c = cellAt(w.x, w.y);
-  const k = key(c.gx,c.gy);
-  if(pl.cells.has(k)){
-    const b = pl.cells.get(k);
-    pl.gold += Math.floor(MAT[b.mat].cost*0.7);
-    pl.cells.delete(k);
-    SFX.pick();
-    refreshHUD();
+function damageKing(k, dmg, fromPlayer){
+  k.hp -= dmg;
+  floater(k.x, k.y-26, '-'+Math.round(dmg), fromPlayer?'#ffd060':'#ff6060');
+  spawnParticles(k.x, k.y-6, 8, '#cc4040', 2);
+  if(fromPlayer && k.side==='right'){
+    const cmd = COMMANDERS[selectedCommander];
+    coCharge = Math.min(cmd.maxCharge, coCharge + cmd.chargeRate(dmg,0,0));
   }
+  if(k.hp <= 0){ k.hp = 0; k.dead = true; }
 }
 
-/* ============================================================= *
- *  FIRING
- * ============================================================= */
-function fireFromAim(){
-  if(shotsLeft<=0) return;
-  const pl = players.L;
-  let dx = aim.sx - aim.mx, dy = aim.sy - aim.my;   // slingshot: pull back, launch opposite
-  let len = Math.hypot(dx,dy);
-  if(len < 6) return;                                // tiny drag = cancel
-  const pull = Math.min(len, MAXPULL);
-  const a = AMMO[curAmmo];
-  const speed = (2 + (pull/MAXPULL)*10) * a.spd;
-  const ang = Math.atan2(dy, dx);
-  pl.cannon.ang = ang*180/Math.PI;
-  spawnBall(pl.side, pl.cannon.x, pl.cannon.y, Math.cos(ang)*speed, Math.sin(ang)*speed, curAmmo);
+//=================================================================
+// Cannon firing
+//=================================================================
+const BALL_G = 0.14;   // cannonball gravity (tuned so a full-power shot can cross the field)
+const BALL_PMAX = 14;  // max cannon power
+let aimAngle = -0.9;   // radians (up-left for player)
+let aimPower = 7.2;
+function cannonDamage(){
+  let d = AMMO[selAmmo].dmg;
+  const cmd = COMMANDERS[selectedCommander];
+  d += cmd.bonusDmg;
+  if(hasUpg('master_gunner')) d += 25;
+  if(coPowerUses > 0) d *= 3;
+  return d;
+}
+function fireCannon(){
+  if(phase !== PHASE.BATTLE) return;
+  if(shotsLeft <= 0) return;
   shotsLeft--;
-  SFX.fire(); shake = Math.max(shake,5);
-  if(tutorial) tutorial.note('fire');
-  refreshHUD();
+  const cx = player.x + 12, cy = player.y - 6;
+  const dmg = cannonDamage();
+  const usedFury = coPowerUses > 0;
+  if(usedFury) coPowerUses--;
+  beep(180,0.12,'square',0.07);
+  spawnParticles(cx, cy, 8, '#ffb040', 2.2);
+  if(selAmmo === 'spread'){
+    for(let i=0;i<AMMO.spread.pellets;i++){
+      const ang = aimAngle + (i-2)*0.10;
+      projectiles.push(makeProj(cx,cy,ang,aimPower,dmg,'ball',0,'left'));
+    }
+  } else {
+    projectiles.push(makeProj(cx,cy,aimAngle,aimPower,dmg,selAmmo,AMMO[selAmmo].splash,'left'));
+  }
+  if(usedFury) screenFlash = 8;
+  updateHud();
 }
-function spawnBall(side, x, y, vx, vy, ammo){
-  const a = AMMO[ammo];
-  projectiles.push({side, x, y, vx, vy, g:CANNON_G, dmg:a.dmg, r:a.r, kind:'ball', ammo, split:a.split||0, boom:a.boom||0, life:600, trail:[]});
+function makeProj(x,y,ang,pow,dmg,kind,splash,side){
+  return {x,y, vx:Math.cos(ang)*pow, vy:Math.sin(ang)*pow,
+    dmg, kind, splash, side, life:300, isArrow:false};
 }
 
-/* ============================================================= *
- *  AI
- * ============================================================= */
-function aiSeedWall(){
-  const pl = players.R;
-  // a couple of starter stones in front of the king
-  const baseGx = Math.floor((pl.king.x+40)/TILE);
-  for(let dx=0; dx<2; dx++) for(let gy=0; gy<2; gy++){
-    const gx = baseGx+dx; const b=blockXY(gx,gy);
-    pl.cells.set(key(gx,gy), {gx,gy,x:b.x,y:b.y,mat:'stone',hp:MAT.stone.hp,max:MAT.stone.hp,hit:0});
+//=================================================================
+// CO Power activation
+//=================================================================
+function activateCoPower(){
+  if(phase !== PHASE.BATTLE) return;
+  const cmd = COMMANDERS[selectedCommander];
+  if(coCharge < cmd.maxCharge) return;
+  coCharge = 0;
+  coActive = 60;
+  screenFlash = 14;
+  beep(420,0.25,'sawtooth',0.08);
+  if(selectedCommander === 'borksworth'){
+    coPowerUses = 2;
+    showBanner('CELTIC FURY', 'Next 2 shots deal 3× damage!');
+  } else if(selectedCommander === 'ironpaw'){
+    // fire 3 spread shots at enemy king
+    const cx = player.x + 12, cy = player.y - 6;
+    const tx = enemy.x, ty = enemy.y - 8;
+    const baseAng = Math.atan2(ty-cy, tx-cx);
+    for(let i=0;i<3;i++){
+      const ang = baseAng + (i-1)*0.12;
+      const pow = 9.5;
+      const dmg = AMMO.ball.dmg + cmd.bonusDmg + (hasUpg('master_gunner')?25:0);
+      projectiles.push(makeProj(cx,cy,ang,pow,dmg,'ball',0,'left'));
+    }
+    showBanner('BARRAGE!', 'Three shots fly at the enemy king!');
+  } else if(selectedCommander === 'pharound'){
+    stunTimer = 180;
+    for(const u of eUnits) if(!u.dead) u.stunned = 180;
+    damageKing(enemy, 40, true);
+    showBanner('DESERT WRATH', 'Enemies stunned! King takes 40 damage!');
   }
+  updateHud();
 }
-function aiBuildPhase(){
-  const pl = players.R;
-  const diff = Math.min(1.6, 0.8 + round*0.18);   // ramps up
-  let gold = pl.gold;
-  // 1) build/repair a shielding wall directly in front of the king (toward player = left)
-  const wallGx = Math.floor((pl.king.x - 26)/TILE);   // a column just left of the king
-  const targetH = Math.min(5, 2 + Math.floor(round/1.5));
-  for(let col=0; col<2 && gold>0; col++){
-    const gx = wallGx - col;
-    for(let gy=0; gy<targetH && gold>0; gy++){
-      const k = key(gx,gy);
-      if(pl.cells.has(k)) continue;
-      const supported = gy===0 || pl.cells.has(key(gx,gy-1));
-      if(!supported) break;
-      // choose material by wealth
-      const mat = gold>120?'iron':gold>50?'stone':'wood';
-      if(gold < MAT[mat].cost) break;
-      const b = blockXY(gx,gy);
-      pl.cells.set(k, {gx,gy,x:b.x,y:b.y,mat,hp:MAT[mat].hp,max:MAT[mat].hp,hit:0});
-      gold -= MAT[mat].cost;
+
+//=================================================================
+// AI (enemy build + battle)
+//=================================================================
+function aiBuild(){
+  // enemy auto-builds a wall + units scaled by round
+  eBlocks.length = 0; eUnits.length = 0;
+  const budget = 50 + round*40;
+  let spent = 0;
+  // build a wall in front of king
+  const wallX = enemy.x - 60;
+  const layers = 1 + Math.min(3, Math.floor(round/2));
+  for(let l=0;l<layers;l++){
+    for(let r=0;r<3;r++){
+      const mat = round>=4? 'iron' : round>=2? 'stone':'wood';
+      if(spent + MAT[mat].cost > budget) break;
+      const gx = wallX + l*TILE;
+      const gy = GROUND_Y - (r+1)*TILE;
+      eBlocks.push(makeBlock(mat, gx, gy, 'right'));
+      spent += MAT[mat].cost;
     }
   }
-  // 2) buy a balanced army with the rest
-  pl.queue = [];
-  const order = ['soldier','archer','knight','soldier','archer'];
-  let i=0, guard=0;
-  while(gold >= UNIT.soldier.cost && guard++<40){
-    const t = order[i % order.length]; i++;
-    if(gold >= UNIT[t].cost && Math.random() < 0.55+diff*0.2){ pl.queue.push(t); gold -= UNIT[t].cost; }
+  // spawn units
+  const types = ['soldier','archer','knight'];
+  let guard = 0;
+  while(spent < budget && guard++ < 40){
+    const t = types[(Math.random()*types.length)|0];
+    if(spent + UNIT[t].cost > budget) break;
+    eUnits.push(makeEnemyUnit(t, enemy.x - 30 - Math.random()*40));
+    spent += UNIT[t].cost;
   }
-  pl.gold = gold;
 }
-function aiBattle(){
-  const pl = players.R;
-  if(pl.cannonCD>0){ pl.cannonCD--; return; }
-  if(pl.aiShots<=0){ pl.cannonCD = 60; return; }
-  const diff = Math.min(1, 0.30 + round*0.08);   // weaker, more forgiving early rounds
-  // choose a target: player king if reachable/exposed, else frontmost blocking wall, else lead a unit
-  const enemy = players.L;
-  let target = pickAITarget(enemy);
-  if(!target) return;
-  const shot = solveBallistic(pl.cannon.x, pl.cannon.y, target.x, target.y, diff);
-  if(!shot) return;
-  spawnBall(pl.side, pl.cannon.x, pl.cannon.y, shot.vx, shot.vy, target.ammo||'standard');
-  shake=Math.max(shake,3);
-  pl.aiShots--;
-  pl.cannonCD = Math.floor(135 - diff*45);   // ~1.5s..3s between shots
+function makeEnemyUnit(type, x){
+  const u = UNIT[type];
+  // scale enemy with round
+  const mult = 1 + (round-1)*0.12;
+  const hp = Math.round(u.hp*mult);
+  return {type, side:'right', x, y:GROUND_Y-12, hp, maxhp:hp, dmg:Math.round(u.dmg*mult),
+    rng:u.rng, spd:u.spd*0.92, col:u.col, cd:0, dead:false, target:null, anim:Math.random()*6.28, stunned:0};
 }
-function pickAITarget(enemy){
-  // exposed king? (no block in the column band in front of king)
-  const kc = cellAt(enemy.king.x, GROUND_Y-10);
-  let blocked=false;
-  for(let gx=kc.gx; gx<=kc.gx+2; gx++){ for(let gy=0;gy<2;gy++){ if(enemy.cells.has(key(gx,gy))) blocked=true; } }
-  if(!blocked || Math.random()<0.12){
-    return {x:enemy.king.x, y:GROUND_Y-16, ammo:'heavy'};
+let aiCannonCd = 0;
+let aiShotsLeft = 0;
+// Simulate a shot from (x0,y0) and return how close it passes to (tx,ty).
+function shotError(x0,y0,ang,pow,tx,ty){
+  let px=x0, py=y0, vx=Math.cos(ang)*pow, vy=Math.sin(ang)*pow, best=1e9;
+  for(let t=0;t<260;t++){
+    px+=vx; py+=vy; vy+=BALL_G;
+    const d=Math.hypot(px-tx, py-ty);
+    if(d<best) best=d;
+    if(py>GROUND_Y+6) break;
+    if(px<-40||px>WORLD_W+40) break;
   }
-  // else target the tallest front wall column
-  let best=null;
-  enemy.cells.forEach(b=>{
-    if(!best || b.y < best.y || (b.x>best.x)) best=b;   // prefer higher / closer-to-front
-  });
-  if(best) return {x:best.x+8, y:best.y+8, ammo: Math.random()<0.4?'bomb':'standard'};
-  // else a marching unit
-  const tgt = units.find(u=>u.side==='L');
-  if(tgt) return {x:tgt.x+tgt.dir*20, y:tgt.y, ammo:'cluster'};
-  return null;
-}
-// simulate candidate shots, return the one that passes closest to target
-function solveBallistic(x0,y0,tx,ty,diff){
-  let best=null, bestErr=1e9;
-  for(let speed=5; speed<=12.5; speed+=0.6){
-    for(let deg=-12; deg>=-82; deg-=4){
-      const a = deg*Math.PI/180; // negative = up, but enemy faces left so flip x
-      const dirx = tx < x0 ? -1 : 1;
-      let vx = Math.cos(a)*speed*dirx, vy = Math.sin(a)*speed;
-      let px=x0, py=y0, vpy=vy, vpx=vx, err=1e9;
-      for(let t=0;t<240;t++){
-        px+=vpx; py+=vpy; vpy+=CANNON_G;
-        const d = Math.hypot(px-tx, py-ty);
-        if(d<err) err=d;
-        if(py>GROUND_Y+4) break;
-      }
-      if(err<bestErr){ bestErr=err; best={vx,vy}; }
-    }
-  }
-  if(!best) return null;
-  // inaccuracy: worse AI scatters more
-  const scatter = (1-diff)*0.16;
-  best.vx *= 1 + (Math.random()*2-1)*scatter;
-  best.vy *= 1 + (Math.random()*2-1)*scatter;
   return best;
 }
+// Brute-force a decent ballistic solution (enemy fires leftward, so cos(ang)<0).
+function aiSolve(x0,y0,tx,ty){
+  let best=null, bestErr=1e9;
+  for(let pow=8; pow<=BALL_PMAX; pow+=0.5){
+    for(let deg=-15; deg>=-78; deg-=3){
+      const ang = Math.PI - (deg*Math.PI/180); // mirror to fire left & up
+      const e = shotError(x0,y0,ang,pow,tx,ty);
+      if(e<bestErr){ bestErr=e; best={ang,pow}; }
+    }
+  }
+  return best;
+}
+function aiBattle(){
+  if(enemy.dead) return;
+  aiCannonCd--;
+  if(aiCannonCd > 0 || aiShotsLeft <= 0) return;
+  const diff = Math.min(1, 0.30 + round*0.08);
+  aiCannonCd = Math.floor(150 - diff*60) + (Math.random()*30|0);
+  aiShotsLeft--;
+  const cx = enemy.x - 12, cy = enemy.y - 6;
+  // target: player king if its column is open, else the tallest front wall
+  let blocked=false, topWall=null;
+  for(const b of pBlocks){
+    if(b.x > player.x-4 && b.x < player.x+TILE+18){ blocked=true; if(!topWall||b.y<topWall.y) topWall=b; }
+  }
+  let tx, ty;
+  if(!blocked || Math.random()<0.18){ tx = player.x+8; ty = player.y-6; }
+  else if(topWall){ tx = topWall.x+TILE/2; ty = topWall.y+TILE/2; }
+  else { tx = player.x+8; ty = player.y-6; }
+  const sol = aiSolve(cx,cy,tx,ty);
+  if(!sol) return;
+  // accuracy scatter: weaker early rounds
+  const scatter = (1-diff)*0.10;
+  const ang = sol.ang + (Math.random()*2-1)*scatter;
+  const pow = sol.pow * (1 + (Math.random()*2-1)*scatter);
+  const dmg = 16 + round*4;
+  projectiles.push(makeProj(cx,cy,ang,pow,dmg,'ball',0,'right'));
+  beep(150,0.1,'square',0.05);
+}
 
-/* ============================================================= *
- *  UPDATE
- * ============================================================= */
+//=================================================================
+// Unit combat update
+//=================================================================
+function nearestBlock(x, side){
+  // returns nearest enemy block to attack (a unit going right attacks right blocks)
+  const arr = side==='left'? eBlocks : pBlocks;
+  let best=null, bd=1e9;
+  for(const b of arr){
+    if(b.hp<=0) continue;
+    const d = Math.abs((b.x+TILE/2) - x);
+    if(d<bd){ bd=d; best=b; }
+  }
+  return {b:best, d:bd};
+}
+function updateUnit(u){
+  if(u.dead) return;
+  if(u.cd>0) u.cd--;
+  if(u.stunned>0){ u.stunned--; return; }
+  // enemy units stunned by pharound wrath
+  if(u.side==='right' && stunTimer>0) return;
+  const dir = u.side==='left'? 1 : -1;
+  const foeKing = u.side==='left'? enemy : player;
+  const foeUnits = u.side==='left'? eUnits : pUnits;
+  u.anim += 0.2;
+
+  // find nearest foe unit in range
+  let tgtUnit=null, td=1e9;
+  for(const f of foeUnits){
+    if(f.dead) continue;
+    const d = Math.abs(f.x - u.x);
+    if(d<td){ td=d; tgtUnit=f; }
+  }
+  // block in path
+  const nb = nearestBlock(u.x, u.side);
+  const kingDist = Math.abs(foeKing.x - u.x);
+
+  // attack priority: unit in range > block in front > king
+  if(tgtUnit && td <= u.rng){
+    if(u.cd<=0){
+      if(u.type==='archer'){
+        projectiles.push(makeArrow(u.x, u.y-6, tgtUnit.x, tgtUnit.y-6, u.dmg, u.side));
+      } else {
+        damageUnit(tgtUnit, u.dmg, u.side==='left');
+        spawnParticles(tgtUnit.x, tgtUnit.y-6, 4, '#cc6060', 1.2);
+      }
+      u.cd = u.type==='archer'? 55 : u.type==='knight'? 50 : 35;
+      beep(u.side==='left'?260:200, 0.05,'square',0.03);
+    }
+    return;
+  }
+  // block in front?
+  if(nb.b){
+    const bx = nb.b.x + TILE/2;
+    const inFront = dir>0 ? (bx > u.x && bx - u.x < u.rng+4) : (bx < u.x && u.x - bx < u.rng+4);
+    if(inFront){
+      if(u.cd<=0){
+        if(u.type==='archer'){
+          projectiles.push(makeArrow(u.x,u.y-6, bx, nb.b.y+8, u.dmg, u.side));
+        } else {
+          damageBlock(nb.b, u.dmg);
+          nb.b.hit = 8;
+        }
+        u.cd = u.type==='archer'? 55 : u.type==='knight'? 50 : 35;
+      }
+      return;
+    }
+  }
+  // king in range?
+  if(kingDist <= u.rng+4 && !foeKing.dead){
+    if(u.cd<=0){
+      damageKing(foeKing, u.dmg, u.side==='left');
+      u.cd = u.type==='archer'? 55 : u.type==='knight'? 50 : 35;
+    }
+    return;
+  }
+  // archer can shoot king from range
+  if(u.type==='archer' && kingDist <= u.rng && !foeKing.dead){
+    if(u.cd<=0){
+      projectiles.push(makeArrow(u.x,u.y-6, foeKing.x, foeKing.y-8, u.dmg, u.side));
+      u.cd = 55;
+    }
+    return;
+  }
+  // otherwise march forward
+  u.x += u.spd * dir;
+  u.x = Math.max(20, Math.min(WORLD_W-20, u.x));
+}
+function makeArrow(x,y,tx,ty,dmg,side){
+  const dx=tx-x, dy=ty-y, dist=Math.max(1,Math.hypot(dx,dy));
+  const sp=4.2;
+  return {x,y, vx:dx/dist*sp, vy:dy/dist*sp - 0.6, dmg, kind:'arrow', splash:0, side,
+    life:120, isArrow:true};
+}
+
+//=================================================================
+// Projectile update
+//=================================================================
+function updateProjectiles(){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p = projectiles[i];
+    p.life--;
+    p.x += p.vx; p.y += p.vy;
+    p.vy += p.isArrow? 0.12 : BALL_G;  // gravity
+    // trail
+    if(!p.isArrow && frame%2===0) particles.push({x:p.x,y:p.y,vx:0,vy:0,life:8,col:'#aa7040'});
+
+    let hit = false;
+    // ground
+    if(p.y >= GROUND_Y-2){ hit = true; }
+    // hit blocks
+    // a cannon only strikes the OPPONENT's fortifications (never its own wall)
+    const allBlocks = p.side==='left'? [eBlocks] : [pBlocks];
+    if(!hit){
+      for(const arr of allBlocks){
+        for(const b of arr){
+          if(b.hp<=0) continue;
+          if(p.x > b.x && p.x < b.x+TILE && p.y > b.y && p.y < b.y+TILE){
+            damageBlock(b, p.dmg);
+            hit = true; break;
+          }
+        }
+        if(hit) break;
+      }
+    }
+    // hit units
+    if(!hit){
+      const targets = p.side==='left'? eUnits : pUnits;
+      for(const u of targets){
+        if(u.dead) continue;
+        if(Math.abs(u.x-p.x)<6 && Math.abs((u.y-6)-p.y)<10){
+          damageUnit(u, p.dmg, p.side==='left');
+          hit = true; break;
+        }
+      }
+    }
+    // hit king
+    if(!hit){
+      const k = p.side==='left'? enemy : player;
+      if(!k.dead && Math.abs(k.x-p.x)<20 && p.y > k.y-26 && p.y < k.y+8){
+        damageKing(k, p.dmg, p.side==='left');
+        hit = true;
+      }
+    }
+    if(hit || p.life<=0){
+      if(hit){
+        spawnParticles(p.x, p.y, p.isArrow?3:8, p.isArrow?'#caa060':'#ffaa40', 2);
+        // splash
+        if(p.splash>0){
+          spawnParticles(p.x, p.y, 14, '#ff8030', 3);
+          screenFlash = Math.max(screenFlash, 3);
+          for(const arr of [pBlocks, eBlocks]){
+            for(const b of arr){
+              if(b.hp<=0) continue;
+              const d = Math.hypot((b.x+TILE/2)-p.x, (b.y+TILE/2)-p.y);
+              if(d < p.splash) damageBlock(b, p.dmg*(1-d/p.splash)*0.7);
+            }
+          }
+          const su = p.side==='left'? eUnits : pUnits;
+          for(const u of su){
+            if(u.dead) continue;
+            const d = Math.hypot(u.x-p.x, (u.y-6)-p.y);
+            if(d < p.splash) damageUnit(u, p.dmg*(1-d/p.splash)*0.7, p.side==='left');
+          }
+          const k = p.side==='left'? enemy : player;
+          if(!k.dead){
+            const d = Math.hypot(k.x-p.x, (k.y-8)-p.y);
+            if(d < p.splash) damageKing(k, p.dmg*(1-d/p.splash)*0.6, p.side==='left');
+          }
+        }
+        beep(p.isArrow?330:140, 0.08, 'square', 0.04);
+      }
+      projectiles.splice(i,1);
+    }
+  }
+}
+
+//=================================================================
+// Main update
+//=================================================================
+function cleanup(){
+  pUnits = pUnits.filter(u=>!u.dead);
+  eUnits = eUnits.filter(u=>!u.dead);
+  pBlocks = pBlocks.filter(b=>b.hp>0);
+  eBlocks = eBlocks.filter(b=>b.hp>0);
+}
+function checkBattleEnd(){
+  if(phase !== PHASE.BATTLE) return;
+  if(enemy.dead){
+    endBattle(true);
+  } else if(player.dead){
+    endBattle(false);
+  } else if(shotsLeft<=0 && aiShotsLeft<=0 && projectiles.length===0 &&
+            pUnits.length===0 && eUnits.length===0 && !enemy.dead){
+    // stalemate: resolve by who preserved the larger share of their king's health
+    const pf = player.hp/player.maxhp, ef = enemy.hp/enemy.maxhp;
+    if(pf >= ef) endBattle(true);
+    else endBattle(false);
+  }
+}
 function update(){
   frame++;
-  if(paused || state===ST.OVER || state===ST.TITLE) return;
+  updateBats();
 
-  // phase timer
-  if(slowmo>0) slowmo--;
-  const tick = slowmo>0 ? 0.5 : 1;
+  if(coActive>0) coActive--;
+  if(screenFlash>0) screenFlash--;
 
-  if(frame % 60 === 0){
-    phaseTime -= 1;
-    if(state===ST.BUILD && phaseTime<=0 && !tutorial) startBattle();
-    refreshHUD();
+  if(phase === PHASE.BATTLE){
+    if(stunTimer>0) stunTimer--;
+    aiBattle();
+    for(const u of pUnits) updateUnit(u);
+    for(const u of eUnits) updateUnit(u);
+    updateProjectiles();
+    cleanup();
+    checkBattleEnd();
   }
 
-  // camera keyboard pan
-  if(keys['a']||keys['arrowleft']) camTargetX -= 7;
-  if(keys['d']||keys['arrowright']) camTargetX += 7;
-
-  if(state===ST.BUILD){
-    camTargetX = clampCam(players.L.king.x - VIEW_W/2 + 60);
+  // particles
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.12; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+  for(let i=floaters.length-1;i>=0;i--){
+    const f=floaters[i]; f.y-=0.5; f.life--;
+    if(f.life<=0) floaters.splice(i,1);
   }
 
-  if(state===ST.BATTLE){
-    updateBattle(tick);
-  }
-
-  // camera smoothing
-  camTargetX = clampCam(camTargetX);
-  camX += (camTargetX - camX)*0.12;
-  camX = clampCam(camX);
-
-  // fx
-  if(shake>0){ shake*=0.86; if(shake<0.3) shake=0; }
-  if(flash>0) flash*=0.85;
-  // king wobble decay
-  for(const s of ['L','R']){ const k=players[s].king; if(k.shake>0) k.shake*=0.8; }
-
-  // debris/particles
-  updateDebris(tick); updateParticles(tick); updateFloaters(tick);
-
-  if(tutorial) tutorial.update();
-}
-
-function updateBattle(tick){
-  const L=players.L, R=players.R;
-  // spawn scheduled units
-  for(const pl of [L,R]){
-    if(pl._toSpawn){
-      pl._spawnFrame += tick;
-      while(pl._toSpawn.length && pl._spawnFrame >= pl._toSpawn[0].at){
-        spawnUnit(pl, pl._toSpawn.shift().type);
-      }
-    }
-  }
-  // AI cannon
-  if(!tutorial) aiBattle();
-
-  updateUnits(tick);
-  updateProjectiles(tick);
-
-  // follow action with camera
-  const manualPan = keys['a']||keys['d']||keys['arrowleft']||keys['arrowright'];
-  if(!manualPan){
-    if(aim.active){
-      // while aiming, frame the cannon (~30% from the left) so the arc is visible
-      camTargetX = clampCam(players.L.cannon.x - VIEW_W*0.30);
+  // camera
+  let targetCam = camX;
+  if(phase===PHASE.BUILD){ targetCam = 0; }
+  else if(phase===PHASE.BATTLE){
+    // follow the player's in-flight cannonball so you can watch it land...
+    let ball=null;
+    for(const p of projectiles){ if(p.side==='left' && !p.isArrow){ if(!ball || p.x>ball.x) ball=p; } }
+    if(ball){
+      targetCam = ball.x - VIEW_W*0.5;
     } else {
-      const focus = battleFocus();
-      if(focus!=null) camTargetX = clampCam(focus - VIEW_W/2);
+      // ...otherwise frame the cannon (with a lead toward the field) for aiming
+      targetCam = player.x - 70;
+    }
+    targetCam = Math.max(0, Math.min(WORLD_W-VIEW_W, targetCam));
+  }
+  const follow = (phase===PHASE.BATTLE && projectiles.some(p=>p.side==='left'&&!p.isArrow)) ? 0.18 : 0.08;
+  camX += (targetCam - camX)*follow;
+  if(camX < 0) camX = 0;
+  if(camX > WORLD_W-VIEW_W) camX = WORLD_W-VIEW_W;
+}
+
+//=================================================================
+// RENDER
+//=================================================================
+function drawSky(){
+  const grd = g.createLinearGradient(0,0,0,GROUND_Y);
+  grd.addColorStop(0,'#06021a');
+  grd.addColorStop(0.3,'#0e0630');
+  grd.addColorStop(0.65,'#160c48');
+  grd.addColorStop(1,'#1a1060');
+  g.fillStyle=grd; g.fillRect(0,0,VIEW_W,GROUND_Y+2);
+
+  const mx = VIEW_W*0.78, my = 42;
+  const mgrd = g.createRadialGradient(mx,my,8,mx,my,40);
+  mgrd.addColorStop(0,'rgba(220,210,170,0.18)');
+  mgrd.addColorStop(1,'rgba(220,210,170,0)');
+  g.fillStyle=mgrd; g.fillRect(mx-40,my-40,80,80);
+  for(let py=-16;py<=16;py++) for(let px=-16;px<=16;px++){
+    if(px*px+py*py<=256){
+      const shade = (px>-8&&py>-8&&px<8&&py<8)?'#e8e0c8':'#ccc4a8';
+      g.fillStyle=shade; g.fillRect(mx+px,my+py,1,1);
     }
   }
+  g.fillStyle='#bab0a0';
+  g.fillRect(mx-6,my+3,4,3); g.fillRect(mx+4,my-8,3,2); g.fillRect(mx+6,my+5,3,3);
 
-  // end conditions
-  if(tutorial) return;
-  const noUnits = units.length===0 && (!L._toSpawn||L._toSpawn.length===0) && (!R._toSpawn||R._toSpawn.length===0);
-  const noBalls = projectiles.every(p=>p.kind!=='ball');
-  const noOffense = shotsLeft===0 && R.aiShots<=0;
-  if(phaseTime<=0 && noBalls){ endBattle(); }
-  else if(noUnits && noBalls && noOffense && phaseTime < BATTLE_TIME-4){ endBattle(); }
-}
-
-function battleFocus(){
-  // 1) follow the player's airborne cannonball
-  const ball = projectiles.find(p=>p.kind==='ball' && p.side==='L');
-  if(ball) return ball.x;
-  // 2) cut to the frontline only once the two armies actually meet
-  let lMax=-1, rMin=WORLD_W+1;
-  for(const u of units){ if(u.side==='L') lMax=Math.max(lMax,u.x); else rMin=Math.min(rMin,u.x); }
-  if(lMax>0 && rMin<WORLD_W && (rMin-lMax) < VIEW_W*0.6) return (lMax+rMin)/2;
-  // 3) otherwise keep the player's cannon in view so they can line up a shot
-  return players.L.cannon.x + VIEW_W*0.20;
-}
-
-/* ---------- Units ---------- */
-function enemyOf(side){ return side==='L'?'R':'L'; }
-function updateUnits(tick){
-  for(const u of units){
-    if(u.hp<=0) continue;
-    const cfg = UNIT[u.type];
-    const foeSide = enemyOf(u.side);
-    const foePl = players[foeSide];
-    u.cd -= tick;
-
-    // 1) nearest enemy unit
-    let foe=null, foeDist=1e9;
-    const reach = cfg.rng>0 ? cfg.rng : cfg.melee;
-    for(const o of units){
-      if(o.side===u.side || o.hp<=0) continue;
-      const d=Math.abs(o.x-u.x);
-      if(d<foeDist){ foeDist=d; foe=o; }
-    }
-    let acted=false;
-    if(foe && foeDist <= reach + 2){
-      // archers keep distance & shoot, melee bonk
-      if(cfg.rng>0){
-        if(u.cd<=0){ shootArrow(u, foe.x, foe.y - 4); u.cd=cfg.cd; }
-        u.state='shoot';
-      } else {
-        if(u.cd<=0){ damageUnit(foe, cfg.dmg, u.dir); u.cd=cfg.cd; flashHit(foe.x,foe.y); }
-        u.state='fight';
-      }
-      acted=true;
-    }
-    if(!acted){
-      // 2) wall in front?
-      const frontX = u.x + u.dir*(cfg.w/2+3);
-      const fc = cellAt(frontX, GROUND_Y-8);
-      let blk=null;
-      for(let gy=0; gy<2; gy++){ const b=foePl.cells.get(key(fc.gx,gy)); if(b){ blk=b; break; } }
-      if(blk){
-        if(u.cd<=0){ damageBlock(foePl, blk, cfg.dmg*1.4); u.cd=cfg.cd; }
-        u.state='siege';
-        acted=true;
-      }
-    }
-    if(!acted){
-      // 3) reached enemy king?
-      if(Math.abs(u.x - foePl.king.x) < 18){
-        if(u.cd<=0){ damageKing(foePl, cfg.dmg, u.dir); u.cd=cfg.cd; }
-        u.state='king';
-        acted=true;
-      }
-    }
-    if(!acted){
-      // march
-      u.x += u.dir * cfg.spd * tick;
-      u.state='march';
-      u.anim += tick*0.25;
-    }
-    // clamp inside world
-    u.x = Math.max(20, Math.min(WORLD_W-20, u.x));
+  for(let i=0;i<60;i++){
+    const sx = (i*7919+i*31)%VIEW_W;
+    const sy = (i*1013+i*17)%Math.floor(GROUND_Y*0.75);
+    const bright = i%7===0;
+    g.fillStyle = bright ? '#fffae8' : '#8878a0';
+    g.fillRect(sx,sy,bright?2:1,bright?2:1);
   }
-  // cull dead
-  units = units.filter(u=>u.hp>0);
-}
-function shootArrow(u, tx, ty){
-  const dx=tx-u.x, dy=ty-(u.y+4);
-  const d=Math.max(1,Math.hypot(dx,dy));
-  const sp=4.2;
-  projectiles.push({side:u.side, x:u.x+u.dir*6, y:u.y+4, vx:dx/d*sp, vy:dy/d*sp - 0.6, g:0.05, dmg:UNIT.archer.dmg, r:2, kind:'arrow', life:140, trail:[]});
-  SFX.arrow();
-}
-function damageUnit(u, dmg, dir){
-  u.hp -= dmg; u.knock=(u.knock||0)+dir*0.6;
-  if(u.hp<=0){ burst(u.x,u.y-6, '#d8d0c0', 8); SFX.hit(); }
-}
-function damageBlock(pl, b, dmg){
-  b.hp -= dmg; b.hit=6;
-  burst(b.x+8,b.y+8, MAT[b.mat].edge, 3);
-  if(b.hp<=0){ pl.cells.delete(key(b.gx,b.gy)); destroyBlockFx(b); }
-}
-function destroyBlockFx(b){
-  const m=MAT[b.mat];
-  for(let i=0;i<5;i++) debris.push({x:b.x+4+Math.random()*8, y:b.y+4+Math.random()*8, vx:(Math.random()*2-1)*2.4, vy:-Math.random()*3-1, rot:Math.random()*6, vr:(Math.random()*2-1)*0.3, s:3+Math.random()*4, col:Math.random()<0.5?m.col:m.col2, life:90});
-  burst(b.x+8,b.y+8, m.edge, 10);
-  shake=Math.max(shake,4); SFX.destroy();
-}
-function damageKing(pl, dmg, dir){
-  pl.king.hp -= dmg; pl.king.shake=6;
-  flashHit(pl.king.x, GROUND_Y-30);
-  floater(pl.king.x, GROUND_Y-58, '-'+Math.round(dmg), '#ff6b6b');
-  if(pl.king.hp<=0){ pl.king.hp=0; victory(pl.side==='R'?'L':'R'); }
 }
 
-/* ---------- Projectiles ---------- */
-function updateProjectiles(tick){
-  const keep=[];
+function drawTower(x, topY, w, h, col){
+  g.fillStyle=col;
+  g.fillRect(x, topY, w, h);
+  for(let i=0;i<Math.floor(w/8);i++){
+    g.fillRect(x+i*8, topY-8, 5, 9);
+  }
+  g.fillStyle='rgba(180,120,60,0.15)';
+  g.fillRect(x+w/2-2, topY+h*0.3, 4, 6);
+}
+function drawCastleWall(x, topY, w, h, col){
+  g.fillStyle=col;
+  g.fillRect(x, topY, w, h);
+  for(let i=1;i<Math.floor(w/50);i++){
+    const wx = x+i*50-4, wy = topY+h*0.25;
+    g.fillStyle='rgba(180,100,30,0.12)';
+    g.fillRect(wx, wy, 8, 14);
+    g.fillStyle='rgba(200,140,60,0.06)';
+    g.fillRect(wx-2, wy, 12, 12);
+  }
+  g.fillStyle=col;
+  for(let i=0;i<Math.floor(w/10);i++){
+    g.fillRect(x+i*10, topY-6, 6, 7);
+  }
+}
+function drawParallax(){
+  // Layer 1: distant castle towers (15% scroll)
+  for(let i=0;i<11;i++){
+    const tx = ((i*200 - (camX*0.15)%200 + 4000)%2000) - 200;
+    if(tx>VIEW_W+60||tx<-60) continue;
+    drawTower(tx, GROUND_Y-70, 28, 72, '#0a0418');
+  }
+  // Layer 2: mid castle walls (30% scroll)
+  for(let i=0;i<8;i++){
+    const tx = ((i*280 - (camX*0.30)%280 + 5600)%2800) - 140;
+    if(tx>VIEW_W+200||tx<-260) continue;
+    drawCastleWall(tx, GROUND_Y-48, 200, 50, '#14082a');
+  }
+  // Layer 3: near ruins/columns (55% scroll)
+  for(let i=0;i<12;i++){
+    const tx = ((i*160 - (camX*0.55)%160 + 3200)%1600) - 80;
+    if(tx>VIEW_W+30||tx<-30) continue;
+    g.fillStyle='#1e1040';
+    g.fillRect(tx, GROUND_Y-36, 12, 38);
+    g.fillRect(tx-4, GROUND_Y-38, 20, 6);
+    g.fillRect(tx-4, GROUND_Y-2, 20, 4);
+  }
+  // Fog at horizon
+  const fog = g.createLinearGradient(0, GROUND_Y-30, 0, GROUND_Y);
+  fog.addColorStop(0,'rgba(20,8,40,0)');
+  fog.addColorStop(1,'rgba(14,6,30,0.5)');
+  g.fillStyle=fog; g.fillRect(0,GROUND_Y-30,VIEW_W,32);
+
+  drawBats();
+}
+
+function drawGround(){
+  g.save();
+  g.translate(-camX, 0);
+  g.fillStyle='#2a2438'; g.fillRect(0,GROUND_Y,WORLD_W,5);
+  g.fillStyle='#1e1828'; g.fillRect(0,GROUND_Y+5,WORLD_W,VIEW_H);
+  g.fillStyle='#14101e';
+  for(let y=GROUND_Y+5;y<VIEW_H;y+=14){ g.fillRect(0,y,WORLD_W,1); }
+  for(let y=GROUND_Y+5;y<VIEW_H;y+=14){
+    const row = Math.floor((y-GROUND_Y)/14);
+    const offset = (row%2)*10;
+    for(let x=offset;x<WORLD_W;x+=20){ g.fillRect(x,y,1,14); }
+  }
+  g.fillStyle='rgba(255,255,255,0.04)';
+  for(let y=GROUND_Y+6;y<VIEW_H;y+=14){ g.fillRect(0,y,WORLD_W,2); }
+  g.fillStyle='#3a3050'; g.fillRect(0,GROUND_Y,WORLD_W,2);
+  g.restore();
+}
+
+function drawBlock(b){
+  const P = {
+    wood:  {base:'#5a3822',shadow:'#3e2818',edge:'#8a5838',inner:'#4a2e1a',mortar:'#2a1c14'},
+    stone: {base:'#3c3450',shadow:'#2c2840',edge:'#6058a0',inner:'#342e48',mortar:'#1e1c2e'},
+    iron:  {base:'#2c3444',shadow:'#1e2434',edge:'#5c7090',inner:'#24303e',mortar:'#141c24'},
+  }[b.mat];
+  const x=Math.round(b.x), y=Math.round(b.y), T=TILE;
+  g.fillStyle=P.base; g.fillRect(x,y,T,T);
+  g.fillStyle=P.shadow;
+  for(let py=0;py<T;py+=4) for(let px=0;px<T;px+=4){
+    if((px/4+py/4)%2===1) g.fillRect(x+px,y+py,4,4);
+  }
+  g.fillStyle=P.edge; g.fillRect(x,y,T,2); g.fillRect(x,y,2,T);
+  g.fillStyle=P.mortar; g.fillRect(x,y+T-2,T,2); g.fillRect(x+T-2,y,2,T);
+  g.strokeStyle='#000'; g.lineWidth=1; g.strokeRect(x+0.5,y+0.5,T-1,T-1);
+
+  if(b.hit>0){ g.fillStyle='rgba(255,180,100,'+(b.hit/10)+')'; g.fillRect(x,y,T,T); b.hit--; }
+
+  if(b.hp < b.max){
+    const f=b.hp/b.max;
+    g.strokeStyle='rgba(0,0,0,0.6)'; g.lineWidth=1;
+    if(f<0.66){ g.beginPath(); g.moveTo(x+4,y+2); g.lineTo(x+6,y+8); g.lineTo(x+5,y+12); g.stroke(); }
+    if(f<0.33){ g.beginPath(); g.moveTo(x+10,y+4); g.lineTo(x+12,y+10); g.lineTo(x+11,y+14); g.stroke(); }
+    g.fillStyle='#000'; g.fillRect(x,y-3,T,2);
+    g.fillStyle=f>0.5?'#3a9a3a':f>0.25?'#c8a020':'#9a1010';
+    g.fillRect(x,y-3,Math.ceil(T*f),2);
+  }
+}
+
+function drawTorchGlow(x, y){
+  const flicker = Math.sin(frame*0.3)*2 + Math.sin(frame*0.7)*1.5;
+  const r = 28 + flicker;
+  const tg = g.createRadialGradient(x,y-10,0, x,y-10,r);
+  tg.addColorStop(0,'rgba(255,140,30,0.22)');
+  tg.addColorStop(0.5,'rgba(200,80,10,0.08)');
+  tg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=tg; g.fillRect(x-r,y-10-r,r*2,r*2);
+  const fy = y-16 + (flicker>0?-1:0);
+  g.fillStyle='#ff8820'; g.fillRect(x-1,fy,2,4);
+  g.fillStyle='#ffcc60'; g.fillRect(x-1,fy,2,2);
+  g.fillStyle='#fff0a0'; g.fillRect(x,fy,1,1);
+}
+
+function drawCannon(k, isPlayer){
+  const x = k.x + (isPlayer? 8 : -8);
+  const y = k.y - 4;
+  g.fillStyle='#2a2838'; g.fillRect(x-7, y-2, 14, 8);
+  g.fillStyle='#1c1a28'; g.fillRect(x-7, y+4, 14, 3);
+  g.fillStyle='#3a3850'; g.fillRect(x-7, y-2, 14, 1);
+  g.fillStyle='#46425c'; g.fillRect(x-6, y-5, 3, 3); g.fillRect(x+3, y-5, 3, 3);
+  g.save();
+  g.translate(x, y-2);
+  g.rotate(isPlayer? aimAngle : Math.PI - aimAngle);
+  g.fillStyle='#181620'; g.fillRect(0,-3,12,6);
+  g.fillStyle='#3a3850'; g.fillRect(0,-3,12,1);
+  g.fillStyle='#0a080e'; g.fillRect(11,-3,2,6);
+  g.restore();
+}
+
+function drawKing(k, isPlayer){
+  const x=Math.round(k.x), y=Math.round(k.y);
+  const cmd = isPlayer? COMMANDERS[selectedCommander] : COMMANDERS['ironpaw'];
+  const body = isPlayer? cmd.col : '#786860';
+  // cloak/cape behind
+  g.fillStyle='#1a0a28'; g.fillRect(x-9, y-18, 18, 26);
+  g.fillStyle='#240e34'; g.fillRect(x-9, y-18, 3, 26); g.fillRect(x+6, y-18, 3, 26);
+  // body
+  g.fillStyle=body; g.fillRect(x-7, y-14, 14, 20);
+  g.fillStyle='rgba(0,0,0,0.3)'; g.fillRect(x+2, y-14, 5, 20);
+  g.fillStyle='rgba(255,255,255,0.12)'; g.fillRect(x-7, y-14, 2, 20);
+  // head
+  g.fillStyle=body; g.fillRect(x-6, y-22, 12, 9);
+  // ears
+  g.fillStyle=body; g.fillRect(x-7, y-26, 4, 5); g.fillRect(x+3, y-26, 4, 5);
+  g.fillStyle='rgba(0,0,0,0.4)'; g.fillRect(x-6, y-25, 2, 3); g.fillRect(x+4, y-25, 2, 3);
+  // snout
+  g.fillStyle='rgba(255,255,255,0.18)'; g.fillRect(x-2, y-16, 4, 3);
+  g.fillStyle='#0a0408'; g.fillRect(x-1, y-15, 2, 2);
+  // glowing eyes
+  g.fillStyle='#fff0a0'; g.fillRect(x-4, y-19, 2, 2); g.fillRect(x+2, y-19, 2, 2);
+  g.fillStyle='#ffd040'; g.fillRect(x-4, y-19, 1, 1); g.fillRect(x+2, y-19, 1, 1);
+  // ornate crown
+  g.fillStyle='#d4a820'; g.fillRect(x-6, y-29, 12, 3);
+  g.fillStyle='#f0d050'; g.fillRect(x-6, y-32, 2, 3); g.fillRect(x-1, y-33, 2, 4); g.fillRect(x+4, y-32, 2, 3);
+  g.fillStyle='#ff4040'; g.fillRect(x-1, y-30, 2, 2);
+  g.fillStyle='#40a0ff'; g.fillRect(x-5, y-28, 1, 1); g.fillRect(x+4, y-28, 1, 1);
+  g.strokeStyle='#000'; g.lineWidth=1; g.strokeRect(x-7.5, y-14.5, 14, 20);
+
+  // HP bar
+  const f = k.hp/k.maxhp;
+  g.fillStyle='#000'; g.fillRect(x-12, y-38, 24, 4);
+  g.fillStyle=f>0.5?'#3a9a3a':f>0.25?'#c8a020':'#cc2020';
+  g.fillRect(x-11, y-37, Math.ceil(22*Math.max(0,f)), 2);
+}
+
+function drawUnit(u){
+  const x=Math.round(u.x), y=Math.round(u.y);
+  const bob = Math.sin(u.anim)*1;
+  const yy = y + (Math.round(bob));
+  const facing = u.side==='left'? 1 : -1;
+  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(x-4, GROUND_Y-2, 8, 2);
+  if(u.type==='soldier'){
+    g.fillStyle='#2a2840'; g.fillRect(x-3, yy-8, 6, 9);
+    g.fillStyle='rgba(255,255,255,0.1)'; g.fillRect(x-3, yy-8, 1, 9);
+    g.fillStyle='#c8722a'; g.fillRect(x-2, yy-12, 4, 4);
+    g.fillStyle='#0a0408'; g.fillRect(x-1+facing, yy-11, 1, 1);
+    g.fillStyle='#5a4a6a'; g.fillRect(x-5*facing-1, yy-7, 3, 6);
+    g.fillStyle='#c85a2a'; g.fillRect(x-5*facing, yy-6, 1, 4);
+    g.fillStyle='#8a7050'; g.fillRect(x+3*facing, yy-13, 1, 13);
+    g.fillStyle='#d8d0c0'; g.fillRect(x+3*facing, yy-13, 1, 2);
+  } else if(u.type==='archer'){
+    g.fillStyle='#1e2c14'; g.fillRect(x-3, yy-12, 6, 7);
+    g.fillStyle='#2a3c1c'; g.fillRect(x-3, yy-12, 6, 1);
+    g.fillStyle='#243018'; g.fillRect(x-2, yy-6, 4, 7);
+    g.fillStyle='#b8682a'; g.fillRect(x-1, yy-8, 2, 2);
+    g.fillStyle='#7a5a30'; g.fillRect(x+2*facing, yy-11, 1, 10);
+    g.strokeStyle='rgba(220,210,180,0.5)'; g.lineWidth=1;
+    g.beginPath(); g.moveTo(x+2*facing+0.5, yy-11); g.lineTo(x+2*facing+0.5, yy-1); g.stroke();
+  } else {
+    g.fillStyle='#3a4050'; g.fillRect(x-4, yy-10, 8, 11);
+    g.fillStyle='#4c5468'; g.fillRect(x-4, yy-10, 8, 2);
+    g.fillStyle='rgba(0,0,0,0.3)'; g.fillRect(x+2, yy-10, 2, 11);
+    g.fillStyle='#444c60'; g.fillRect(x-3, yy-15, 6, 6);
+    g.fillStyle='#0a0810'; g.fillRect(x-3, yy-12, 6, 1);
+    g.fillStyle='#9a2020'; g.fillRect(x-1, yy-18, 2, 4);
+    g.fillStyle='#d8d4c8'; g.fillRect(x+4*facing, yy-16, 2, 16);
+    g.fillStyle='#fff'; g.fillRect(x+4*facing, yy-16, 1, 4);
+    g.fillStyle='#8a7040'; g.fillRect(x+3*facing, yy-2, 4, 2);
+  }
+  g.strokeStyle='rgba(0,0,0,0.5)'; g.lineWidth=1; g.strokeRect(x-4.5, yy-12.5, 9, 13);
+  if(u.hp < u.maxhp){
+    const f=u.hp/u.maxhp;
+    g.fillStyle='#000'; g.fillRect(x-5, yy-17, 10, 2);
+    g.fillStyle=f>0.5?'#3a9a3a':'#cc2020';
+    g.fillRect(x-5, yy-17, Math.ceil(10*Math.max(0,f)), 2);
+  }
+  if(u.stunned>0 || (u.side==='right'&&stunTimer>0)){
+    g.fillStyle='#ffd040'; g.fillRect(x-2+Math.sin(frame*0.4)*3, yy-22, 1, 1);
+  }
+}
+
+function drawProjectiles(){
   for(const p of projectiles){
-    p.life-=tick; if(p.life<=0) continue;
-    const speed=Math.hypot(p.vx,p.vy);
-    const steps=Math.max(1, Math.ceil(speed/4));
-    let dead=false;
-    p.trail.push({x:p.x,y:p.y}); if(p.trail.length>8) p.trail.shift();
-    for(let s=0;s<steps && !dead;s++){
-      p.x += p.vx/steps; p.y += p.vy/steps;
-      if(collideProjectile(p)){ dead=true; }
-    }
-    p.vy += p.g*tick;
-    // hit ground
-    if(!dead && p.y >= GROUND_Y-1){
-      onProjectileImpact(p, p.x, GROUND_Y-1, null);
-      dead=true;
-    }
-    if(p.x< -40 || p.x>WORLD_W+40) dead=true;
-    // cluster split at apex
-    if(!dead && p.split>0 && p.vy>0 && !p.didSplit){
-      p.didSplit=true;
-      for(let i=-1;i<=1;i++){ if(i===0) continue;
-        projectiles.push({side:p.side,x:p.x,y:p.y,vx:p.vx+i*1.8,vy:p.vy*0.8,g:p.g,dmg:p.dmg,r:p.r,kind:'ball',ammo:'standard',split:0,boom:0,life:400,trail:[]});
-      }
-    }
-    if(!dead) keep.push(p);
-  }
-  projectiles = keep;
-}
-function collideProjectile(p){
-  const foe = enemyOf(p.side);
-  const foePl = players[foe];
-  // king
-  const k=foePl.king;
-  if(k.hp>0 && Math.abs(p.x-k.x)<12 && p.y>GROUND_Y-34 && p.y<GROUND_Y){
-    damageKing(foePl, p.dmg, Math.sign(p.vx)||1);
-    onProjectileImpact(p,p.x,p.y,'king');
-    return true;
-  }
-  // blocks
-  const c=cellAt(p.x,p.y);
-  for(let gy=Math.max(0,c.gy-0); gy>=0 && gy<=c.gy; gy--){}
-  const b=foePl.cells.get(key(c.gx,c.gy));
-  if(b){
-    damageBlock(foePl, b, p.dmg);
-    onProjectileImpact(p,p.x,p.y,'block');
-    return true;
-  }
-  // enemy units
-  for(const u of units){
-    if(u.side===p.side||u.hp<=0) continue;
-    const cfg=UNIT[u.type];
-    if(p.x>u.x-cfg.w/2 && p.x<u.x+cfg.w/2 && p.y>u.y && p.y<u.y+cfg.h){
-      damageUnit(u, p.dmg, Math.sign(p.vx)||1);
-      onProjectileImpact(p,p.x,p.y,'unit');
-      return true;
+    const x=Math.round(p.x), y=Math.round(p.y);
+    if(p.isArrow){
+      const ang = Math.atan2(p.vy, p.vx);
+      g.save(); g.translate(x,y); g.rotate(ang);
+      g.fillStyle='#8a7050'; g.fillRect(-4,-0.5,7,1);
+      g.fillStyle='#d8d0c0'; g.fillRect(3,-1,2,2);
+      g.restore();
+    } else {
+      g.fillStyle = p.kind==='bomb'? '#1a1a22' : '#2a2832';
+      g.fillRect(x-2,y-2,4,4);
+      g.fillStyle='#5a5868'; g.fillRect(x-2,y-2,2,2);
+      if(p.kind==='bomb'){ g.fillStyle='#ff8030'; g.fillRect(x-1,y-4,1,2); }
     }
   }
-  return false;
-}
-function onProjectileImpact(p, x, y, what){
-  if(p.kind==='arrow'){ burst(x,y,'#cfc0a0',3); return; }
-  burst(x,y,'#ffd23f',10); shake=Math.max(shake, p.r*1.6);
-  if(p.boom>0){ explode(p.side, x, y, p.boom, p.dmg*0.8); flash=0.5; }
-}
-function explode(side, x, y, radius, dmg){
-  const foe=enemyOf(side); const foePl=players[foe];
-  burst(x,y,'#ff7a2a',22); SFX.destroy();
-  // blocks
-  foePl.cells.forEach(b=>{
-    const d=Math.hypot(b.x+8-x, b.y+8-y);
-    if(d<radius) damageBlock(foePl, b, dmg*(1-d/radius));
-  });
-  // units
-  for(const u of units){ if(u.side===side) continue;
-    const d=Math.hypot(u.x-x, u.y-y);
-    if(d<radius){ damageUnit(u, dmg*(1-d/radius), Math.sign(u.x-x)||1); u.knock=(u.knock||0)+(u.x>x?1:-1)*2; }
-  }
-  // king
-  const k=foePl.king; const d=Math.hypot(k.x-x, (GROUND_Y-16)-y);
-  if(d<radius && k.hp>0) damageKing(foePl, dmg*(1-d/radius), Math.sign(k.x-x)||1);
 }
 
-/* ---------- FX ---------- */
-function burst(x,y,col,n){ for(let i=0;i<n;i++){ const a=Math.random()*6.28, s=1+Math.random()*3; particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,life:18+Math.random()*14,col,s:1+Math.random()*2}); } }
-function flashHit(x,y){ burst(x,y,'#ffffff',6); }
-function floater(x,y,txt,col){ floaters.push({x,y,txt,col,life:50,vy:-0.5}); }
-function banner(h,p){ const b=document.getElementById('banner'); document.getElementById('bannerH').textContent=h; document.getElementById('bannerP').textContent=p||''; b.classList.add('show'); clearTimeout(banner._t); banner._t=setTimeout(()=>b.classList.remove('show'),1400); }
-function updateDebris(t){ for(const d of debris){ d.x+=d.vx*t; d.y+=d.vy*t; d.vy+=DEBRIS_G*t; d.rot+=d.vr*t; d.life-=t; if(d.y>GROUND_Y-d.s){ d.y=GROUND_Y-d.s; d.vy*=-0.32; d.vx*=0.7; } } debris=debris.filter(d=>d.life>0); }
-function updateParticles(t){ for(const p of particles){ p.x+=p.vx*t; p.y+=p.vy*t; p.vy+=0.16*t; p.life-=t; } particles=particles.filter(p=>p.life>0); }
-function updateFloaters(t){ for(const f of floaters){ f.y+=f.vy*t; f.life-=t; } floaters=floaters.filter(f=>f.life>0); }
-
-/* ============================================================= *
- *  VICTORY
- * ============================================================= */
-function victory(winnerSide){
-  state = ST.OVER;
-  showBar(null);
-  const win = winnerSide==='L';
-  if(win) SFX.win(); else SFX.lose();
-  document.getElementById('over').classList.add('show');
-  const h=document.getElementById('overH'), p=document.getElementById('overP');
-  h.textContent = win?'🎉 VICTORY!':'💀 DEFEAT';
-  h.style.color = win?'#36e07a':'#ff5050';
-  p.textContent = win
-    ? 'The Celtic Corgis crushed the Viking Laikas after '+round+' rounds!'
-    : 'The Viking Laikas overran your castle. Try a stronger wall!';
+function drawParticles(){
+  for(const p of particles){
+    const a = Math.min(1, p.life/20);
+    g.globalAlpha = a;
+    g.fillStyle = p.col;
+    g.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
+  }
+  g.globalAlpha = 1;
+}
+function drawFloaters(){
+  g.font = '8px "Courier New"';
+  for(const f of floaters){
+    g.globalAlpha = Math.min(1, f.life/40);
+    g.fillStyle='#000'; g.fillText(f.txt, Math.round(f.x)-3, Math.round(f.y)+1);
+    g.fillStyle=f.col; g.fillText(f.txt, Math.round(f.x)-4, Math.round(f.y));
+  }
+  g.globalAlpha=1;
 }
 
-/* ============================================================= *
- *  RENDER
- * ============================================================= */
-function clampCam(x){ return Math.max(0, Math.min(WORLD_W-VIEW_W, x)); }
+function drawBuildHints(){
+  if(phase!==PHASE.BUILD) return;
+  g.globalAlpha = 0.12 + Math.sin(frame*0.1)*0.04;
+  g.fillStyle = '#c85a2a';
+  g.fillRect(P_ZONE.x0, GROUND_Y-TILE*6, P_ZONE.x1-P_ZONE.x0, TILE*6);
+  g.globalAlpha = 1;
+  g.strokeStyle='rgba(200,160,80,0.12)';
+  for(let gx=P_ZONE.x0; gx<=P_ZONE.x1; gx+=TILE){
+    g.beginPath(); g.moveTo(gx, GROUND_Y-TILE*6); g.lineTo(gx, GROUND_Y); g.stroke();
+  }
+  if(selMat && !eraseMode && mouseInWorld){
+    const gx = snapX(mouseWorldX), gy = snapY(mouseWorldY);
+    if(inPlayerZone(gx) && gy < GROUND_Y && gy >= GROUND_Y-TILE*6){
+      g.globalAlpha=0.5;
+      drawBlock({mat:selMat, x:gx, y:gy, hp:1, max:1, hit:0});
+      g.globalAlpha=1;
+    }
+  }
+}
+
+function drawVignette(){
+  const vg = g.createRadialGradient(VIEW_W/2,VIEW_H/2, VIEW_H*0.35, VIEW_W/2,VIEW_H/2, VIEW_H*0.85);
+  vg.addColorStop(0,'rgba(0,0,0,0)');
+  vg.addColorStop(0.7,'rgba(0,0,0,0.25)');
+  vg.addColorStop(1,'rgba(0,0,0,0.75)');
+  g.fillStyle=vg; g.fillRect(0,0,VIEW_W,VIEW_H);
+  g.fillStyle='rgba(0,0,0,0.10)';
+  for(let y=0;y<VIEW_H;y+=2){ g.fillRect(0,y,VIEW_W,1); }
+}
+
+function drawTrajectory(){
+  const cx = player.x + 12, cy = player.y - 6;
+  let px=cx, py=cy, vx=Math.cos(aimAngle)*aimPower, vy=Math.sin(aimAngle)*aimPower;
+  for(let i=0;i<240;i++){
+    px+=vx; py+=vy; vy+=BALL_G;
+    if(py>=GROUND_Y || px>WORLD_W || px<0) break;
+    if(i%4===0){
+      const s = i<60?2:1;
+      g.fillStyle = i<60? 'rgba(255,210,110,0.75)' : 'rgba(255,210,110,0.35)';
+      g.fillRect(Math.round(px), Math.round(py), s, s);
+    }
+  }
+}
 
 function render(){
-  g.save();
-  // background (does not scroll with full parallax — drawn in screen space then world layered)
+  g.clearRect(0,0,VIEW_W,VIEW_H);
   drawSky();
-  // shake
-  let shx=0, shy=0;
-  if(shake>0){ shx=(Math.random()-0.5)*shake; shy=(Math.random()-0.5)*shake; }
-  g.translate(-Math.round(camX)+shx, shy);
-
   drawParallax();
   drawGround();
-  drawRuins();
 
-  // build zone highlight
-  if(state===ST.BUILD){ drawZone(players.L); }
+  g.save();
+  g.translate(-camX, 0);
 
-  // blocks
-  drawBlocks(players.R);
-  drawBlocks(players.L);
+  drawBuildHints();
 
-  // cannons + kings + units
-  drawKing(players.R);
-  drawKing(players.L);
-  drawCannon(players.R, false);
-  drawCannon(players.L, true);
+  if(player) drawTorchGlow(player.x+8, player.y-4);
+  if(enemy) drawTorchGlow(enemy.x-8, enemy.y-4);
 
-  // sort units by x for slight depth, draw
-  const su=[...units].sort((a,b)=>a.y-b.y);
-  for(const u of su) drawUnit(u);
+  for(const b of pBlocks) drawBlock(b);
+  for(const b of eBlocks) drawBlock(b);
 
-  drawDebris();
+  if(enemy) { drawKing(enemy, false); drawCannon(enemy, false); }
+  if(player){ drawKing(player, true); drawCannon(player, true); }
+
+  for(const u of pUnits) drawUnit(u);
+  for(const u of eUnits) drawUnit(u);
+
   drawProjectiles();
   drawParticles();
   drawFloaters();
 
-  // build hover preview
-  if(state===ST.BUILD && hoverCell) drawHoverGhost();
-
-  // aim trajectory
-  if(state===ST.BATTLE) drawAim();
+  if(phase===PHASE.BATTLE && shotsLeft>0){
+    drawTrajectory();
+  }
 
   g.restore();
 
-  // screen-space flash
-  if(flash>0.02){ g.fillStyle='rgba(255,240,180,'+Math.min(0.6,flash)+')'; g.fillRect(0,0,VIEW_W,VIEW_H); }
+  if(screenFlash>0){
+    g.fillStyle = 'rgba(255,240,200,'+(screenFlash/14*0.5)+')';
+    g.fillRect(0,0,VIEW_W,VIEW_H);
+  }
+  if(coActive>0){
+    g.fillStyle='rgba(180,60,220,'+(coActive/60*0.18)+')';
+    g.fillRect(0,0,VIEW_W,VIEW_H);
+  }
+  if(stunTimer>0){
+    g.fillStyle='rgba(200,160,40,'+(Math.min(stunTimer,30)/30*0.1)+')';
+    g.fillRect(0,0,VIEW_W,VIEW_H);
+  }
 
-  // vignette
   drawVignette();
-
-  // blit to display, scaled
-  sx.fillStyle='#05070d'; sx.fillRect(0,0,screen.width,screen.height);
-  sx.imageSmoothingEnabled=false;
-  sx.drawImage(buf, 0,0,VIEW_W,VIEW_H, offX,offY, VIEW_W*scale, VIEW_H*scale);
-
-  if(paused) drawPaused();
 }
 
-function drawSky(){
-  const grd=g.createLinearGradient(0,0,0,GROUND_Y);
-  grd.addColorStop(0,'#243b6e');
-  grd.addColorStop(0.45,'#3f6aa8');
-  grd.addColorStop(0.8,'#7aa6d6');
-  grd.addColorStop(1,'#b9d9ea');
-  g.fillStyle=grd; g.fillRect(0,0,VIEW_W,GROUND_Y+2);
-  // sun
-  g.fillStyle='#ffe9a8'; g.fillRect(VIEW_W-72,26,26,26);
-  g.fillStyle='rgba(255,233,168,0.3)'; g.fillRect(VIEW_W-78,20,38,38);
-}
-function drawParallax(){
-  // far mountains (slow)
-  const px = camX*0.3;
-  g.fillStyle='#3a4f7a';
-  for(let i=-1;i<8;i++){ const bx=i*180 - (px%180); mountain(bx, GROUND_Y-10, 150, 78); }
-  g.fillStyle='#4a628f';
-  for(let i=-1;i<10;i++){ const bx=i*140 - (camX*0.5%140); mountain(bx, GROUND_Y-6, 120, 54); }
-  // clouds
-  g.fillStyle='rgba(255,255,255,0.78)';
-  const cl=[[60,38],[220,58],[360,30],[150,80],[420,70]];
-  for(const [cx,cy] of cl){ const x=((cx - camX*0.25)%(VIEW_W+80)+VIEW_W+80)%(VIEW_W+80)-40; cloud(x+camX, cy); }
-  // tree line (mid)
-  g.fillStyle='#27613a';
-  for(let i=-1;i<22;i++){ const bx=i*60 - (camX*0.8%60); tree(bx+camX, GROUND_Y-2, 0.8); }
-}
-function mountain(x,baseY,w,h){ g.beginPath(); g.moveTo(x,baseY); g.lineTo(x+w/2,baseY-h); g.lineTo(x+w,baseY); g.closePath(); g.fill(); }
-function cloud(x,y){ g.fillRect(x,y,28,9); g.fillRect(x+6,y-6,18,9); g.fillRect(x+14,y,22,9); }
-function tree(x,y,s){ g.fillRect(x+6*s,y-14*s,3,14*s); g.fillStyle='#2f7a47'; g.fillRect(x,y-26*s,16*s,16*s); g.fillRect(x+3*s,y-32*s,10*s,8*s); g.fillStyle='#27613a'; }
+//=================================================================
+// Input — aiming & building
+//=================================================================
+let mouseWorldX=0, mouseWorldY=0, mouseInWorld=false;
+function snapX(x){ return Math.floor(x/TILE)*TILE; }
+function snapY(y){ return Math.floor(y/TILE)*TILE; }
+function inPlayerZone(gx){ return gx>=P_ZONE.x0 && gx+TILE<=P_ZONE.x1+TILE; }
 
-function drawGround(){
-  g.fillStyle='#4f8a3a'; g.fillRect(0,GROUND_Y,WORLD_W,6);          // grass top
-  g.fillStyle='#3c6b2c'; g.fillRect(0,GROUND_Y+6,WORLD_W,6);
-  g.fillStyle='#6b4a2a'; g.fillRect(0,GROUND_Y+12,WORLD_W,VIEW_H);   // dirt
-  g.fillStyle='#5a3d22';
-  for(let x=0;x<WORLD_W;x+=18){ g.fillRect(x,GROUND_Y+18,10,5); g.fillRect(x+6,GROUND_Y+28,8,5); g.fillRect(x+2,GROUND_Y+40,7,5); }
-  // grass blades
-  g.fillStyle='#5fa047';
-  for(let x=0;x<WORLD_W;x+=10){ const hh=(x*7%5); g.fillRect(x,GROUND_Y-2,2,2+hh); }
+function screenToWorld(ev){
+  const r = screen.getBoundingClientRect();
+  const sx = (ev.clientX - r.left)/scale;
+  const sy = (ev.clientY - r.top)/scale;
+  return {x: sx+camX, y: sy};
 }
-function drawRuins(){
-  g.fillStyle='rgba(120,140,95,0.35)';
-  g.fillRect(300,GROUND_Y-44,20,46); g.fillRect(316,GROUND_Y-58,12,20);
-  g.fillStyle='rgba(95,120,150,0.35)';
-  g.fillRect(WORLD_W-320,GROUND_Y-50,20,52); g.fillRect(WORLD_W-330,GROUND_Y-62,12,20);
+function applyAim(w){
+  const cx = player.x+12, cy = player.y-6;
+  let a = Math.atan2(w.y-cy, w.x-cx);
+  if(a > 0.2) a = 0.2;
+  if(a < -2.6) a = -2.6;
+  aimAngle = a;
+  const dist = Math.hypot(w.x-cx, w.y-cy);
+  aimPower = Math.max(5, Math.min(BALL_PMAX, dist/18 + 4));
 }
-function drawZone(pl){
-  g.fillStyle='rgba(120,255,160,0.06)';
-  g.fillRect(pl.zone[0],0,pl.zone[1]-pl.zone[0],GROUND_Y);
-  g.strokeStyle='rgba(120,255,160,0.35)'; g.lineWidth=1;
-  g.setLineDash([4,4]);
-  g.strokeRect(pl.zone[0]+0.5,GROUND_Y-160,pl.zone[1]-pl.zone[0]-1,160);
-  g.setLineDash([]);
-  // grid dots
-  g.fillStyle='rgba(255,255,255,0.12)';
-  for(let x=pl.zone[0];x<pl.zone[1];x+=TILE) for(let gy=0;gy<10;gy++){ const b=blockXY(0,gy); g.fillRect(x,b.y+TILE-1,1,1); }
-}
+screen.addEventListener('mousemove', ev=>{
+  const w = screenToWorld(ev);
+  mouseWorldX=w.x; mouseWorldY=w.y; mouseInWorld=true;
+  if(phase===PHASE.BATTLE) applyAim(w);
+});
+screen.addEventListener('mouseleave', ()=>{ mouseInWorld=false; });
+screen.addEventListener('mousedown', ev=>{
+  const w = screenToWorld(ev);
+  if(phase===PHASE.BUILD){ doBuild(w.x, w.y); }
+  else if(phase===PHASE.BATTLE){ fireCannon(); }
+});
+screen.addEventListener('touchstart', ev=>{
+  ev.preventDefault();
+  const t = ev.touches[0];
+  const w = screenToWorld(t);
+  mouseWorldX=w.x; mouseWorldY=w.y; mouseInWorld=true;
+  if(phase===PHASE.BATTLE) applyAim(w);
+}, {passive:false});
+screen.addEventListener('touchmove', ev=>{
+  ev.preventDefault();
+  const t=ev.touches[0]; const w=screenToWorld(t);
+  mouseWorldX=w.x; mouseWorldY=w.y;
+  if(phase===PHASE.BATTLE) applyAim(w);
+}, {passive:false});
+screen.addEventListener('touchend', ev=>{
+  ev.preventDefault();
+  if(phase===PHASE.BUILD){ doBuild(mouseWorldX, mouseWorldY); }
+  else if(phase===PHASE.BATTLE){ fireCannon(); }
+}, {passive:false});
 
-function drawBlocks(pl){ pl.cells.forEach(b=>drawBlock(b)); }
-function drawBlock(b){
-  const m=MAT[b.mat];
-  const x=Math.round(b.x), y=Math.round(b.y);
-  g.fillStyle=m.col; g.fillRect(x,y,TILE,TILE);
-  g.fillStyle=m.col2;
-  for(let py=0;py<TILE;py+=4) for(let px=0;px<TILE;px+=4){ if((px+py)%8===0) g.fillRect(x+px,y+py,4,4); }
-  g.fillStyle=m.edge; g.fillRect(x,y,TILE,2); g.fillRect(x,y,2,TILE);
-  g.fillStyle='rgba(0,0,0,0.32)'; g.fillRect(x,y+TILE-2,TILE,2); g.fillRect(x+TILE-2,y,2,TILE);
-  if(b.hit>0){ g.fillStyle='rgba(255,255,255,'+(b.hit/12)+')'; g.fillRect(x,y,TILE,TILE); b.hit--; }
-  // damage cracks / health
-  if(b.hp<b.max){
-    const f=b.hp/b.max;
-    g.fillStyle='#1a1a1a';
-    if(f<0.66){ g.fillRect(x+4,y+2,1,8); g.fillRect(x+5,y+8,3,1); }
-    if(f<0.33){ g.fillRect(x+10,y+5,1,7); g.fillRect(x+8,y+9,3,1); }
-    // hp pip bar
-    g.fillStyle='#000'; g.fillRect(x,y-3,TILE,2);
-    g.fillStyle=f>0.5?'#36e07a':f>0.25?'#ffd23f':'#ff5050'; g.fillRect(x,y-3,Math.ceil(TILE*f),2);
-  }
+function blockAt(gx,gy){
+  for(const b of pBlocks) if(b.x===gx && b.y===gy) return b;
+  return null;
 }
-
-function drawHoverGhost(){
-  const c=hoverCell; if(c.gy<0||c.gy>9) return;
-  const b=blockXY(c.gx,c.gy);
-  const pl=players.L;
-  const k=key(c.gx,c.gy);
-  const exists=pl.cells.has(k);
-  const inz=inZone(pl,b.x+TILE/2);
-  const supported=c.gy===0||pl.cells.has(key(c.gx,c.gy-1));
-  const ok=inz&&supported&&!exists&&pl.gold>=MAT[curMat].cost;
-  g.globalAlpha=0.6;
-  g.fillStyle= exists?'#ff5050': ok?MAT[curMat].col:'#aa4444';
-  g.fillRect(b.x,b.y,TILE,TILE);
-  g.globalAlpha=1;
-  g.strokeStyle= exists?'#ff5050': ok?'#36e07a':'#ff8030'; g.lineWidth=1;
-  g.strokeRect(b.x+0.5,b.y+0.5,TILE-1,TILE-1);
-}
-
-function drawCannon(pl, isCeltic){
-  const cx=Math.round(pl.cannon.x), cy=Math.round(pl.cannon.y);
-  // mound
-  g.fillStyle='#6b4a2a'; g.fillRect(cx-16,cy+6,32,GROUND_Y-(cy+6));
-  g.fillStyle='#4f8a3a'; g.fillRect(cx-16,cy+6,32,4);
-  // wheel
-  g.fillStyle='#3a2a18'; g.fillRect(cx-10,cy+2,8,8); g.fillRect(cx+2,cy+2,8,8);
-  // base
-  g.fillStyle=isCeltic?'#b3471e':'#2f5a8c'; g.fillRect(cx-12,cy-6,24,12);
-  g.fillStyle='rgba(255,255,255,0.25)'; g.fillRect(cx-12,cy-6,24,3);
-  g.strokeStyle='#000'; g.lineWidth=1; g.strokeRect(cx-12.5,cy-6.5,24,12);
-  // barrel
-  g.save(); g.translate(cx,cy-1);
-  let a=pl.cannon.ang*Math.PI/180;
-  if(state===ST.BUILD) a = isCeltic? -0.7 : Math.PI+0.7;
-  g.rotate(a);
-  g.fillStyle=isCeltic?'#d65a26':'#3f74b0'; g.fillRect(0,-5,22,10);
-  g.fillStyle='rgba(255,255,255,0.3)'; g.fillRect(2,-5,18,2);
-  g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(0,3,22,2);
-  g.fillStyle='#222'; g.fillRect(20,-5,3,10);
-  g.strokeStyle='#000'; g.strokeRect(0.5,-5.5,22,10);
-  g.restore();
-  // banner pole
-  g.fillStyle='#3a2a18'; g.fillRect(cx-1,cy-30,2,24);
-  g.fillStyle=isCeltic?'#2ca84a':'#4a90e2';
-  g.beginPath(); g.moveTo(cx+1,cy-30); g.lineTo(cx+14,cy-26); g.lineTo(cx+1,cy-22); g.closePath(); g.fill();
-}
-
-/* ----- Kings (pixel dogs) ----- */
-function drawKing(pl){
-  const isCorgi = pl.isL;
-  const x=Math.round(pl.king.x + (pl.king.shake>0?(Math.random()-0.5)*pl.king.shake:0));
-  const baseY=GROUND_Y;
-  g.save(); g.translate(x, baseY);
-  const body = isCorgi?'#e8893f':'#8b7d6b';
-  const body2= isCorgi?'#cf7430':'#766857';
-  const dir = isCorgi?1:-1;
-  g.scale(dir,1);
-  // shadow
-  g.fillStyle='rgba(0,0,0,0.25)'; g.fillRect(-12,-2,24,3);
-  // legs
-  g.fillStyle=body2; g.fillRect(-8,-8,5,8); g.fillRect(3,-8,5,8);
-  // body
-  g.fillStyle=body; g.fillRect(-11,-24,22,18);
-  g.fillStyle=isCorgi?'#fff':'#9b8d7b';
-  g.fillRect(-7,-20,9,12); // chest
-  // tail
-  g.fillStyle=body; g.fillRect(10,-22,5,5);
-  // head
-  g.fillStyle=body; g.fillRect(-10,-40,20,18);
-  // snout
-  g.fillStyle=body2; g.fillRect(2,-30,9,7);
-  g.fillStyle='#000'; g.fillRect(9,-29,2,2); // nose
-  // ears
-  g.fillStyle=body;
-  if(isCorgi){ g.fillRect(-10,-48,6,9); g.fillRect(4,-48,6,9); }
-  else { g.beginPath(); g.moveTo(-9,-40); g.lineTo(-6,-50); g.lineTo(-2,-40); g.fill(); g.beginPath(); g.moveTo(2,-40); g.lineTo(5,-50); g.lineTo(9,-40); g.fill(); }
-  // eye
-  g.fillStyle=isCorgi?'#2a1a0a':'#3a7bd0'; g.fillRect(2,-36,3,3);
-  g.fillStyle='#000'; g.lineWidth=1; g.strokeStyle='#3a2412'; g.strokeRect(-10.5,-40.5,20,18);
-  // crown
-  const cgold=isCorgi?'#ffd23f':'#cfd6e0';
-  g.fillStyle=cgold; g.fillRect(-9,-50,18,7);
-  g.fillRect(-9,-54,3,5); g.fillRect(-2,-55,3,6); g.fillRect(6,-54,3,5);
-  g.fillStyle=isCorgi?'#2ca84a':'#4a90e2'; g.fillRect(-3,-49,3,3);
-  g.strokeStyle='#7a5a10'; g.strokeRect(-9.5,-50.5,18,7);
-  g.restore();
-  // health bar
-  drawBar(x-16, baseY-58, 32, 5, pl.king.hp/pl.king.max);
-  // name tag
-  g.fillStyle='rgba(0,0,0,0.55)';
-  const nm=isCorgi?'CORGI KING':'LAIKA KING';
-  pxText(nm, x-nm.length*2, baseY-66, isCorgi?'#ffd23f':'#9fd3ff');
-}
-function drawBar(x,y,w,h,f){
-  f=Math.max(0,Math.min(1,f));
-  g.fillStyle='#000'; g.fillRect(x-1,y-1,w+2,h+2);
-  g.fillStyle='#3a2a2a'; g.fillRect(x,y,w,h);
-  g.fillStyle=f>0.5?'#36e07a':f>0.25?'#ffd23f':'#ff5050';
-  g.fillRect(x,y,Math.round(w*f),h);
-  g.fillStyle='rgba(255,255,255,0.25)'; g.fillRect(x,y,Math.round(w*f),1);
-}
-
-/* ----- Units ----- */
-function drawUnit(u){
-  const cfg=UNIT[u.type];
-  const isL=u.side==='L';
-  const x=Math.round(u.x + (u.knock||0)), y=Math.round(u.y);
-  const bob = u.state==='march' ? Math.round(Math.sin(u.anim)* (u.type==='knight'?0:1)) : 0;
-  g.save(); g.translate(x, y+bob);
-  g.scale(u.dir,1);
-  // shadow
-  g.fillStyle='rgba(0,0,0,0.25)'; g.fillRect(-cfg.w/2, cfg.h-bob, cfg.w, 2);
-  const main = isL? '#c75a2a' : '#3f6f9c';
-  const skin = isL? '#e8b07a' : '#cdd6e0';
-  const trim = isL? '#2ca84a' : '#9fb8d8';
-  if(u.type==='soldier'){
-    g.fillStyle=main; g.fillRect(-4,-2,8,11);             // body
-    g.fillStyle=skin; g.fillRect(-3,-9,6,6);              // head
-    g.fillStyle=trim; g.fillRect(-4,-11,8,3);             // helm
-    g.fillStyle='#6b6b6b'; g.fillRect(5,-12,2,18);        // spear
-    g.fillStyle='#cfcfcf'; g.fillRect(4,-14,3,4);         // spear tip
-    g.fillStyle='#7a4a2a'; g.fillRect(-7,-4,3,7);         // shield arm
-    g.fillStyle=trim; g.fillRect(-8,-3,3,6);              // shield
-  } else if(u.type==='archer'){
-    g.fillStyle=main; g.fillRect(-3,-2,7,11);
-    g.fillStyle=skin; g.fillRect(-3,-9,6,6);
-    g.fillStyle='#3a6b2a'; g.fillRect(-4,-11,7,3);        // hood
-    g.strokeStyle='#7a4a2a'; g.lineWidth=1;               // bow
-    g.beginPath(); g.arc(4,-2,6,-1.2,1.2); g.stroke();
-    g.strokeStyle='#ddd'; g.beginPath(); g.moveTo(4,-8); g.lineTo(4,4); g.stroke();
-  } else { // knight
-    g.fillStyle='#8a93a3'; g.fillRect(-5,-3,10,13);       // armor
-    g.fillStyle=main; g.fillRect(-5,-3,3,13);
-    g.fillStyle='#aab4c4'; g.fillRect(-4,-11,8,8);        // helm
-    g.fillStyle='#000'; g.fillRect(0,-9,3,2);             // visor
-    g.fillStyle=trim; g.fillRect(-3,-15,3,5);             // plume
-    g.fillStyle='#6b6b6b'; g.fillRect(6,-14,2,20);        // sword
-    g.fillStyle='#d8d8d8'; g.fillRect(5,-16,4,3);
-  }
-  // attack lunge flash
-  if((u.state==='fight'||u.state==='siege'||u.state==='king') && u.cd>cfg.cd-6){
-    g.fillStyle='rgba(255,255,255,0.5)'; g.fillRect(4,-12,6,4);
-  }
-  g.restore();
-  // hp bar (small)
-  if(u.hp<u.max){ drawBar(x-cfg.w/2, y-5, cfg.w, 2, u.hp/u.max); }
-}
-
-function drawDebris(){
-  for(const d of debris){ g.save(); g.translate(d.x,d.y); g.rotate(d.rot); g.fillStyle=d.col; g.fillRect(-d.s/2,-d.s/2,d.s,d.s); g.restore(); }
-}
-function drawProjectiles(){
-  for(const p of projectiles){
-    if(p.kind==='arrow'){
-      g.strokeStyle='#5a3a1a'; g.lineWidth=1;
-      g.beginPath(); g.moveTo(p.x,p.y); g.lineTo(p.x-p.vx,p.y-p.vy); g.stroke();
-      g.fillStyle='#cfcfcf'; g.fillRect(Math.round(p.x),Math.round(p.y),2,2);
-      continue;
-    }
-    // trail
-    for(let i=0;i<p.trail.length;i++){ const t=p.trail[i]; g.fillStyle='rgba(255,210,80,'+(i/p.trail.length*0.5)+')'; const s=Math.max(1,p.r-1); g.fillRect(Math.round(t.x-s/2),Math.round(t.y-s/2),s,s); }
-    const col = p.ammo==='bomb'?'#ff5a2a':p.ammo==='heavy'?'#2c3340':p.ammo==='cluster'?'#ff7ab0':'#3a2a18';
-    g.fillStyle=col; g.fillRect(Math.round(p.x-p.r),Math.round(p.y-p.r),p.r*2,p.r*2);
-    g.fillStyle='rgba(255,255,255,0.6)'; g.fillRect(Math.round(p.x-p.r+1),Math.round(p.y-p.r+1),2,2);
-    if(p.ammo==='bomb'){ g.fillStyle='#ffcf00'; g.fillRect(Math.round(p.x),Math.round(p.y-p.r-2),1,2); }
-  }
-}
-function drawParticles(){ for(const p of particles){ g.globalAlpha=Math.max(0,Math.min(1,p.life/20)); g.fillStyle=p.col; g.fillRect(Math.round(p.x),Math.round(p.y),p.s,p.s); } g.globalAlpha=1; }
-function drawFloaters(){ for(const f of floaters){ g.globalAlpha=Math.max(0,f.life/40); pxText(f.txt, Math.round(f.x), Math.round(f.y), f.col); } g.globalAlpha=1; }
-
-function drawAim(){
-  const pl=players.L;
-  if(!aim.active){
-    // idle: draw a subtle reticle toward mouse
+function doBuild(wx, wy){
+  const gx = snapX(wx), gy = snapY(wy);
+  if(eraseMode){
+    const b = blockAt(gx,gy);
+    if(b){ pBlocks.splice(pBlocks.indexOf(b),1); gold += Math.floor(MAT[b.mat].cost*0.5); updateHud(); beep(200,0.05,'square',0.04); }
     return;
   }
-  let dx=aim.sx-aim.mx, dy=aim.sy-aim.my;
-  let len=Math.hypot(dx,dy); if(len<6) return;
-  const pull=Math.min(len,MAXPULL);
-  const a=AMMO[curAmmo];
-  const speed=(2+(pull/MAXPULL)*10)*a.spd;
-  const ang=Math.atan2(dy,dx);
-  let tx=pl.cannon.x, ty=pl.cannon.y, vx=Math.cos(ang)*speed, vy=Math.sin(ang)*speed;
-  // power meter color
-  const pw=pull/MAXPULL;
-  for(let i=0;i<70;i++){
-    tx+=vx; ty+=vy; vy+=CANNON_G;
-    if(ty>GROUND_Y||tx<0||tx>WORLD_W) break;
-    if(i%3===0){ const s=i<24?2:1; g.fillStyle= pw>0.85?'#ff5050':'rgba(255,255,255,0.85)'; g.fillRect(Math.round(tx),Math.round(ty),s,s); }
+  if(selMat){
+    if(!inPlayerZone(gx)) return;
+    if(gy>=GROUND_Y || gy<GROUND_Y-TILE*6) return;
+    if(blockAt(gx,gy)) return;
+    const cost = MAT[selMat].cost;
+    if(gold < cost){ beep(90,0.1,'square',0.04); return; }
+    gold -= cost;
+    pBlocks.push(makeBlock(selMat, gx, gy, 'left'));
+    beep(300,0.05,'square',0.04);
+    updateHud();
+  } else if(selUnit){
+    if(!inPlayerZone(snapX(wx))) return;
+    const cost = UNIT[selUnit].cost;
+    if(gold < cost){ beep(90,0.1,'square',0.04); return; }
+    gold -= cost;
+    pUnits.push(makeUnit(selUnit, Math.max(P_ZONE.x0+10, Math.min(P_ZONE.x1-10, wx)), 'left'));
+    beep(340,0.05,'square',0.04);
+    updateHud();
   }
-  // power bar near cannon
-  drawBar(pl.cannon.x-16, pl.cannon.y-44, 32, 4, pw);
 }
 
-/* ---------- tiny pixel text (3x5 font) ---------- */
-const FONT={
- 'A':['010','101','111','101','101'],'B':['110','101','110','101','110'],'C':['011','100','100','100','011'],
- 'D':['110','101','101','101','110'],'E':['111','100','110','100','111'],'F':['111','100','110','100','100'],
- 'G':['011','100','101','101','011'],'H':['101','101','111','101','101'],'I':['111','010','010','010','111'],
- 'J':['001','001','001','101','010'],'K':['101','110','100','110','101'],'L':['100','100','100','100','111'],
- 'M':['101','111','111','101','101'],'N':['101','111','111','111','101'],'O':['010','101','101','101','010'],
- 'P':['110','101','110','100','100'],'Q':['010','101','101','110','011'],'R':['110','101','110','101','101'],
- 'S':['011','100','010','001','110'],'T':['111','010','010','010','010'],'U':['101','101','101','101','111'],
- 'V':['101','101','101','101','010'],'W':['101','101','111','111','101'],'X':['101','101','010','101','101'],
- 'Y':['101','101','010','010','010'],'Z':['111','001','010','100','111'],
- '0':['111','101','101','101','111'],'1':['010','110','010','010','111'],'2':['110','001','010','100','111'],
- '3':['110','001','010','001','110'],'4':['101','101','111','001','001'],'5':['111','100','110','001','110'],
- '6':['011','100','110','101','010'],'7':['111','001','010','010','010'],'8':['010','101','010','101','010'],
- '9':['010','101','011','001','110'],'-':['000','000','111','000','000'],' ':['000','000','000','000','000'],
- '!':['010','010','010','000','010'],'.':['000','000','000','000','010'],':':['000','010','000','010','000'],
-};
-function pxText(str,x,y,col){
-  g.fillStyle=col||'#fff'; str=(''+str).toUpperCase();
-  let cx=x;
-  for(const ch of str){ const gl=FONT[ch]; if(gl){ for(let r=0;r<5;r++) for(let c=0;c<3;c++) if(gl[r][c]==='1') g.fillRect(cx+c,y+r,1,1); } cx+=4; }
+//=================================================================
+// Phase transitions
+//=================================================================
+function shotsPerBattle(){
+  let s = 5;
+  s += COMMANDERS[selectedCommander].extraShots;
+  if(hasUpg('ammo_cache')) s += 1;
+  return s;
 }
 
-function drawVignette(){
-  const grd=g.createRadialGradient(VIEW_W/2,VIEW_H/2,VIEW_H/2.2, VIEW_W/2,VIEW_H/2,VIEW_W/1.3);
-  grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,'rgba(0,0,0,0.35)');
-  g.fillStyle=grd; g.fillRect(0,0,VIEW_W,VIEW_H);
-}
-function drawPaused(){
-  sx.fillStyle='rgba(0,0,0,0.5)'; sx.fillRect(0,0,screen.width,screen.height);
-  sx.fillStyle='#ffd23f'; sx.font='bold 40px Courier New'; sx.textAlign='center';
-  sx.fillText('PAUSED', screen.width/2, screen.height/2);
-  sx.font='16px Courier New'; sx.fillStyle='#cfe0ff';
-  sx.fillText('press P to resume', screen.width/2, screen.height/2+34);
-}
+function enterBuild(){
+  phase = PHASE.BUILD;
+  player = player || newKing('left', COMMANDERS[selectedCommander].col);
+  player.col = COMMANDERS[selectedCommander].col;
+  enemy = newKing('right', '#5a8fc8');
+  enemy.maxhp = 200 + round*45; enemy.hp = enemy.maxhp;
+  let baseMax = 420 + (hasUpg('royal_guard')?100:0);
+  player.maxhp = baseMax;
+  if(hasUpg('royal_guard')) player.hp = Math.min(player.maxhp, player.hp + 50);
+  else player.hp = Math.min(player.hp, player.maxhp);
+  player.dead = false; enemy.dead = false;
 
-/* ============================================================= *
- *  TUTORIAL
- * ============================================================= */
-function makeTutorial(){
-  const steps=[
-    {phase:'build', msg:"Welcome, Commander! This is your CORGI KING. If his health reaches zero, you lose. Let's defend him.", wait:'next'},
-    {phase:'build', msg:"BUILD a wall! Click inside the green zone to place blocks. Stack them in FRONT of your king. Place at least 4.", wait:()=> placedCount()>=4},
-    {phase:'build', msg:"Nice wall! Pick a tougher material from the bar (STONE/IRON) any time. Right-click removes a block for a refund.", wait:'next'},
-    {phase:'build', msg:"An army wins sieges. Buy a SOLDIER and an ARCHER from the bar — they'll march out when battle starts.", wait:()=> players.L.queue.length>=2},
-    {phase:'build', msg:"Ready? Hit ⚔ DONE — FIGHT! (or press SPACE) to begin the battle.", wait:'phase:battle'},
-    {phase:'battle', msg:"BATTLE! DRAG anywhere and pull BACK like a slingshot — the dotted arc shows your shot. RELEASE to fire at the enemy. Try it!", wait:()=> tutorial.fired>=1},
-    {phase:'battle', msg:"Great shot! You have limited shots per battle, so aim well. Switch AMMO (HEAVY/CLUSTER/BOMB) in the bar for different effects.", wait:'next'},
-    {phase:'battle', msg:"Your units fight automatically. Destroy the enemy LAIKA KING to win the war. Use A/D or ARROWS to pan the camera. Good luck!", wait:'next', last:true},
-  ];
-  let i=0; let firedCount=0;
-  function show(){
-    const s=steps[i];
-    const box=document.getElementById('tut');
-    document.getElementById('tutMsg').textContent=s.msg;
-    box.classList.add('show');
-    const nx=document.getElementById('tutNext');
-    nx.style.display = (s.wait==='next') ? 'inline-block':'none';
-  }
-  return {
-    fired:0,
-    start(){ i=0; show(); },
-    note(ev){ if(ev==='fire'){ this.fired++; firedCount++; } },
-    onPhase(ph){ const s=steps[i]; if(!s) return; if(typeof s.wait==='string' && s.wait==='phase:'+ph){ this.advance(); } },
-    next(){ const s=steps[i]; if(s && s.wait==='next') this.advance(); },
-    advance(){
-      i++;
-      if(i>=steps.length){ document.getElementById('tut').classList.remove('show'); tutorial=null; banner('TUTORIAL DONE','Now fight for real!'); return; }
-      const s=steps[i];
-      if(s.phase==='battle' && state!==ST.BATTLE){ /* will show when phase matches */ }
-      show();
-    },
-    update(){
-      const s=steps[i]; if(!s) return;
-      if(typeof s.wait==='function' && s.wait()){ this.advance(); }
+  pBlocks = []; eBlocks = []; pUnits = []; eUnits = [];
+  projectiles = []; particles = []; floaters = [];
+  coPowerUses = 0; stunTimer = 0;
+
+  if(hasUpg('barricade')){
+    const startX = P_ZONE.x1 - TILE*3;
+    let placed=0;
+    for(let l=0;l<2 && placed<6;l++){
+      for(let r=0;r<3 && placed<6;r++){
+        const gx = startX + l*TILE;
+        const gy = GROUND_Y - (r+1)*TILE;
+        pBlocks.push(makeBlock('stone', gx, gy, 'left'));
+        placed++;
+      }
     }
-  };
-}
-function placedCount(){ return players.L.cells.size; }
+  }
 
-/* ============================================================= *
- *  UI WIRING
- * ============================================================= */
-function showBar(which){
-  document.getElementById('buildBar').classList.toggle('show', which==='build');
-  document.getElementById('battleBar').classList.toggle('show', which==='battle');
-}
-function refreshHUD(){
-  if(!players) return;
-  document.getElementById('hudGold').textContent='💰 '+players.L.gold;
-  document.getElementById('hudRound').textContent='ROUND '+round;
-  document.getElementById('hudPhase').textContent = state===ST.BUILD?'BUILD':'BATTLE';
-  document.getElementById('hudTimer').textContent = tutorial?'⏱ —':('⏱ '+Math.max(0,phaseTime|0));
-  // shots
-  let pips=''; for(let i=0;i<SHOTS_PER_BATTLE;i++) pips+= i<shotsLeft?'●':'○';
-  document.getElementById('shotsLeft').textContent=pips;
-  refreshMatUI();
-}
-function refreshMatUI(){
-  // lock unaffordable
-  if(!players) return;
-  document.querySelectorAll('.matbtn').forEach(b=>{
-    const m=MAT[b.dataset.mat]; b.classList.toggle('lock', players.L.gold<m.cost);
-  });
-  document.querySelectorAll('.unitbtn').forEach(b=>{
-    const u=UNIT[b.dataset.unit]; b.classList.toggle('lock', players.L.gold<u.cost);
-  });
+  aiBuild();
+
+  gold += 60 + round*30;
+  camX = 0;
+  selMat='stone'; selUnit=null; eraseMode=false;
+  refreshBuildButtons();
+
+  document.getElementById('buildBar').classList.add('show');
+  document.getElementById('battleBar').classList.remove('show');
+  document.getElementById('hud').classList.add('show');
+  updateHud();
+
+  if(isTutorial && round===1) startTutorial();
 }
 
-document.querySelectorAll('.matbtn').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.matbtn').forEach(x=>x.classList.remove('sel'));
-  b.classList.add('sel'); curMat=b.dataset.mat; SFX.pick();
-}));
-document.querySelectorAll('.ammobtn').forEach(b=>b.addEventListener('click',()=>{
-  document.querySelectorAll('.ammobtn').forEach(x=>x.classList.remove('sel'));
-  b.classList.add('sel'); curAmmo=b.dataset.ammo; SFX.pick();
-}));
-document.querySelectorAll('.unitbtn').forEach(b=>b.addEventListener('click',()=>{
-  const t=b.dataset.unit, u=UNIT[t], pl=players.L;
-  if(pl.gold<u.cost){ b.classList.add('lock'); return; }
-  pl.gold-=u.cost; pl.queue.push(t); SFX.place();
-  floater(pl.king.x, GROUND_Y-72, '+'+u.name, '#9fd3ff');
-  refreshHUD();
-  // little count badge via title
-  b.title = pl.queue.filter(q=>q===t).length+' queued';
-}));
-document.getElementById('doneBtn').addEventListener('click', ()=> startBattle());
-document.getElementById('tutNext').addEventListener('click', ()=>{ if(tutorial) tutorial.next(); });
-document.getElementById('muteBtn').addEventListener('click',()=>{ muted=!muted; document.getElementById('muteBtn').textContent=muted?'🔇':'🔊'; });
-document.getElementById('menuBtn').addEventListener('click',()=> backToTitle());
-document.getElementById('playBtn').addEventListener('click', ()=>{ ac(); startGame(false); if(tutorial)tutorial.start(); });
-document.getElementById('tutBtn').addEventListener('click', ()=>{ ac(); startGame(true); tutorial.start(); });
-document.getElementById('againBtn').addEventListener('click', ()=>{ startGame(false); });
+function commenceSiege(){
+  if(phase!==PHASE.BUILD) return;
+  phase = PHASE.BATTLE;
+  shotsLeft = shotsPerBattle();
+  selAmmo = 'ball';
+  aiCannonCd = 150;
+  aiShotsLeft = 3 + Math.floor(round*0.8);   // bounded enemy bombardment
+  document.getElementById('buildBar').classList.remove('show');
+  document.getElementById('battleBar').classList.add('show');
+  refreshAmmoButtons();
+  updateHud();
+  showBanner('SIEGE!', 'Round '+round+' begins.');
+  if(isTutorial) tutBattleHint();
+}
 
-function backToTitle(){
-  state=ST.TITLE; players=null; tutorial=null; units=[]; projectiles=[]; debris=[]; particles=[];
-  document.getElementById('title').classList.remove('hide');
+function endBattle(won){
+  if(phase !== PHASE.BATTLE) return;
+  document.getElementById('battleBar').classList.remove('show');
+  if(won){
+    showBanner('VICTORY', 'The enemy king has fallen!');
+    beep(520,0.3,'sine',0.08);
+    if(isTutorial){
+      phase = PHASE.OVER;
+      setTimeout(()=> gameOver(true, 'TUTORIAL COMPLETE', 'You are ready for the siege.'), 1400);
+      return;
+    }
+    round++;
+    gold += 40;
+    phase = PHASE.UPGRADE;
+    setTimeout(showUpgradeScreen, 1400);
+  } else {
+    showBanner('DEFEAT', 'Your king has fallen.');
+    beep(110,0.4,'sawtooth',0.08);
+    phase = PHASE.OVER;
+    setTimeout(()=> gameOver(false, 'DEFEAT', 'Fanghold has fallen to ruin.'), 1400);
+  }
+}
+
+function gameOver(won, h, p){
+  phase = PHASE.OVER;
+  document.getElementById('over').classList.add('show');
+  document.getElementById('overH').textContent = h;
+  document.getElementById('overH').style.color = won? '#d4a820':'#cc3030';
+  document.getElementById('overP').textContent = p;
   document.getElementById('hud').classList.remove('show');
-  document.getElementById('over').classList.remove('show');
-  showBar(null);
-  document.getElementById('tut').classList.remove('show');
+  document.getElementById('buildBar').classList.remove('show');
+  document.getElementById('battleBar').classList.remove('show');
 }
 
-/* ============================================================= *
- *  TITLE BACKGROUND (animated demo)
- * ============================================================= */
-function renderTitle(){
-  drawSky();
-  drawParallax();
-  drawGround();
-  drawRuins();
-  // a couple of idle dog kings waving
-  const fakeL={isL:true,king:{x:120,hp:100,max:100,shake:0},cannon:{x:42,y:GROUND_Y-30,ang:-40}};
-  const fakeR={isL:false,king:{x:WORLD_W-120,hp:100,max:100,shake:0},cannon:{x:WORLD_W-42,y:GROUND_Y-30,ang:-140}};
-  // dim, since HTML title overlays
-  drawCannon(fakeR,false); drawCannon(fakeL,true);
-  // floating cannonballs arc for flavor
-  const t=frame*0.04;
-  for(let i=0;i<3;i++){ const px=120+(i*120), tt=(t+i)%6.28; const bx=px+tt*30, by=GROUND_Y-30-Math.sin(tt)*70; g.fillStyle='#3a2a18'; g.fillRect(bx,by,4,4); }
-  g.globalAlpha=0.5; drawKingSimple(fakeL); drawKingSimple(fakeR); g.globalAlpha=1;
-  drawVignette();
-  sx.fillStyle='#05070d'; sx.fillRect(0,0,screen.width,screen.height);
-  sx.imageSmoothingEnabled=false;
-  sx.drawImage(buf,0,0,VIEW_W,VIEW_H, offX,offY, VIEW_W*scale, VIEW_H*scale);
+//=================================================================
+// HUD / buttons
+//=================================================================
+function updateHud(){
+  document.getElementById('hudRound').textContent = 'ROUND '+round;
+  document.getElementById('hudPhase').textContent = phase===PHASE.BUILD?'BUILD':phase===PHASE.BATTLE?'SIEGE':'-';
+  document.getElementById('hudGold').textContent = 'GOLD '+gold;
+  const cmd = COMMANDERS[selectedCommander];
+  const pct = Math.round(coCharge/cmd.maxCharge*100);
+  document.getElementById('hudCo').textContent = 'CO: '+pct+'%';
+  document.getElementById('shotsLeft').textContent = 'SHOTS '+shotsLeft;
+  const cob = document.getElementById('coBtn');
+  const bars = Math.round(pct/20);
+  let s='';
+  for(let i=0;i<5;i++) s += i<bars? '▓':'░';
+  document.getElementById('coCharge').textContent = s;
+  if(coCharge >= cmd.maxCharge){ cob.classList.add('ready'); cob.classList.remove('lock'); }
+  else { cob.classList.remove('ready'); cob.classList.add('lock'); }
 }
-function drawKingSimple(pl){ const sv=players; players={L:pl,R:pl}; try{ drawKing(pl);}catch(e){} players=sv; }
+function refreshBuildButtons(){
+  document.querySelectorAll('#buildBar [data-mat]').forEach(b=>{
+    b.classList.toggle('sel', !eraseMode && selMat===b.dataset.mat);
+  });
+  document.querySelectorAll('#buildBar [data-unit]').forEach(b=>{
+    b.classList.toggle('sel', !eraseMode && selUnit===b.dataset.unit);
+  });
+  document.getElementById('eraseBtn').classList.toggle('sel', eraseMode);
+}
+function refreshAmmoButtons(){
+  document.querySelectorAll('#battleBar [data-ammo]').forEach(b=>{
+    b.classList.toggle('sel', selAmmo===b.dataset.ammo);
+  });
+}
 
-/* ============================================================= *
- *  MAIN LOOP (fixed timestep)
- * ============================================================= */
-let acc=0, last=performance.now();
-const STEP=1000/60;
-function loop(now){
-  let dt=now-last; last=now; if(dt>100) dt=100; acc+=dt;
-  let guard=0;
-  while(acc>=STEP && guard++<5){ update(); acc-=STEP; }
-  if(state===ST.TITLE){ frame++; renderTitle(); }
-  else render();
+document.querySelectorAll('#buildBar [data-mat]').forEach(b=>{
+  b.addEventListener('click', ()=>{ selMat=b.dataset.mat; selUnit=null; eraseMode=false; refreshBuildButtons(); });
+});
+document.querySelectorAll('#buildBar [data-unit]').forEach(b=>{
+  b.addEventListener('click', ()=>{ selUnit=b.dataset.unit; selMat=null; eraseMode=false; refreshBuildButtons(); });
+});
+document.getElementById('eraseBtn').addEventListener('click', ()=>{ eraseMode=!eraseMode; selMat=null; selUnit=null; refreshBuildButtons(); });
+document.getElementById('goBtn').addEventListener('click', commenceSiege);
+document.querySelectorAll('#battleBar [data-ammo]').forEach(b=>{
+  b.addEventListener('click', ()=>{ selAmmo=b.dataset.ammo; refreshAmmoButtons(); });
+});
+document.getElementById('coBtn').addEventListener('click', activateCoPower);
+document.getElementById('muteBtn').addEventListener('click', ()=>{ muted=!muted; document.getElementById('muteBtn').textContent = muted?'MUTE':'SND'; });
+document.getElementById('quitBtn').addEventListener('click', ()=> location.reload());
+document.getElementById('overBtn').addEventListener('click', ()=> location.reload());
+
+//=================================================================
+// Banner
+//=================================================================
+let bannerTimer=null;
+function showBanner(h, p){
+  const el = document.getElementById('banner');
+  document.getElementById('bannerH').textContent = h;
+  document.getElementById('bannerP').textContent = p;
+  el.classList.add('show');
+  if(bannerTimer) clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(()=> el.classList.remove('show'), 1600);
+}
+
+//=================================================================
+// Story screen
+//=================================================================
+const STORY_TEXT = "The Sacred Bone of the Ancients has been stolen from the vaults beneath Castle Fanghold. Three factions now clash for dominion over its ruins: the Celtic Corgis, the Norse Laikas, and the Desert Pharaoh Hounds. Blood will be spilled. Walls will fall. Only one banner will fly above the rubble. Choose your commander.";
+let storyInterval = null, storyIdx = 0;
+function showStory(){
+  phase = PHASE.STORY;
+  const el = document.getElementById('story');
+  el.classList.add('show');
+  document.getElementById('storyText').textContent = '';
+  document.getElementById('storyCont').style.display='none';
+  document.getElementById('storySkip').style.display='inline-block';
+  storyIdx = 0;
+  if(storyInterval) clearInterval(storyInterval);
+  storyInterval = setInterval(()=>{
+    storyIdx++;
+    document.getElementById('storyText').textContent = STORY_TEXT.slice(0, storyIdx);
+    if(storyIdx >= STORY_TEXT.length){ clearInterval(storyInterval); storyDone(); }
+  }, 30);
+}
+function storyDone(){
+  if(storyInterval) clearInterval(storyInterval);
+  document.getElementById('storyText').textContent = STORY_TEXT;
+  document.getElementById('storyCont').style.display='inline-block';
+  document.getElementById('storySkip').style.display='none';
+}
+document.getElementById('storySkip').addEventListener('click', storyDone);
+document.getElementById('storyCont').addEventListener('click', ()=>{
+  document.getElementById('story').classList.remove('show');
+  showCmdSelect();
+});
+
+//=================================================================
+// Commander select
+//=================================================================
+function drawCmdPortrait(canvas, cmd){
+  const c = canvas.getContext('2d');
+  c.imageSmoothingEnabled=false;
+  c.clearRect(0,0,48,64);
+  const col = cmd.col;
+  c.fillStyle='#08041a'; c.fillRect(0,0,48,64);
+  const x=24, y=40;
+  c.fillStyle='#1a0a28'; c.fillRect(x-16,y-26,32,40);
+  c.fillStyle=col; c.fillRect(x-12,y-18,24,30);
+  c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(x+4,y-18,8,30);
+  c.fillStyle=col; c.fillRect(x-11,y-34,22,16);
+  c.fillStyle=col;
+  if(cmd.breed==='pharaoh'){ c.fillRect(x-12,y-46,7,14); c.fillRect(x+5,y-46,7,14); }
+  else { c.fillRect(x-13,y-42,8,9); c.fillRect(x+5,y-42,8,9); }
+  c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-10,y-40,4,5); c.fillRect(x+6,y-40,4,5);
+  c.fillStyle='rgba(255,255,255,0.18)'; c.fillRect(x-4,y-24,8,5);
+  c.fillStyle='#0a0408'; c.fillRect(x-2,y-22,4,3);
+  c.fillStyle='#fff0a0'; c.fillRect(x-7,y-30,3,3); c.fillRect(x+4,y-30,3,3);
+  c.fillStyle='#ffd040'; c.fillRect(x-7,y-30,1,1); c.fillRect(x+4,y-30,1,1);
+  c.fillStyle='#d4a820'; c.fillRect(x-11,y-50,22,4);
+  c.fillStyle='#f0d050'; c.fillRect(x-10,y-54,3,5); c.fillRect(x-2,y-56,4,7); c.fillRect(x+7,y-54,3,5);
+  c.fillStyle='#ff4040'; c.fillRect(x-2,y-50,4,3);
+  c.strokeStyle='#000'; c.lineWidth=1; c.strokeRect(x-12.5,y-18.5,24,30);
+}
+function showCmdSelect(){
+  phase = PHASE.CMD;
+  document.getElementById('cmdSelect').classList.add('show');
+  const wrap = document.getElementById('cmdCards');
+  wrap.innerHTML = '';
+  pendingCommander = 'borksworth';
+  for(const key of Object.keys(COMMANDERS)){
+    const cmd = COMMANDERS[key];
+    const card = document.createElement('div');
+    card.className = 'cmd-card';
+    card.dataset.key = key;
+    if(key===pendingCommander) card.classList.add('sel');
+    const cv = document.createElement('canvas'); cv.width=48; cv.height=64;
+    card.appendChild(cv);
+    const nm = document.createElement('div'); nm.className='cname'; nm.textContent=cmd.name; card.appendChild(nm);
+    const tt = document.createElement('div'); tt.className='ctitle'; tt.textContent=cmd.title; card.appendChild(tt);
+    const ps = document.createElement('div'); ps.className='cpass'; ps.textContent='PASSIVE: '+cmd.passive; card.appendChild(ps);
+    const pw = document.createElement('div'); pw.className='cpow'; pw.textContent='CO — '+cmd.powerName+': '+cmd.powerDesc; card.appendChild(pw);
+    const bi = document.createElement('div'); bi.className='cbio'; bi.textContent='"'+cmd.bio+'"'; card.appendChild(bi);
+    card.addEventListener('click', ()=>{
+      pendingCommander = key;
+      document.querySelectorAll('.cmd-card').forEach(c=>c.classList.toggle('sel', c.dataset.key===key));
+    });
+    wrap.appendChild(card);
+    drawCmdPortrait(cv, cmd);
+  }
+}
+document.getElementById('cmdChoose').addEventListener('click', ()=>{
+  selectedCommander = pendingCommander;
+  document.getElementById('cmdSelect').classList.remove('show');
+  beginCampaign();
+});
+
+//=================================================================
+// Upgrade screen
+//=================================================================
+function showUpgradeScreen(){
+  phase = PHASE.UPGRADE;
+  const remaining = UPGRADES_POOL.filter(u=> !hasUpg(u.id));
+  if(remaining.length === 0){ enterBuild(); return; }
+  const pool = remaining.slice();
+  upgradeChoices = [];
+  while(upgradeChoices.length < 3 && pool.length){
+    const idx = (Math.random()*pool.length)|0;
+    upgradeChoices.push(pool.splice(idx,1)[0]);
+  }
+  const wrap = document.getElementById('upgCards');
+  wrap.innerHTML='';
+  for(const u of upgradeChoices){
+    const card = document.createElement('div');
+    card.className='upg-card';
+    card.innerHTML = '<div class="uicon">'+u.icon+'</div><div class="uname">'+u.name+'</div><div class="udesc">'+u.desc+'</div>';
+    card.addEventListener('click', ()=> pickUpgrade(u.id));
+    wrap.appendChild(card);
+  }
+  document.getElementById('upgradeScreen').classList.add('show');
+}
+function pickUpgrade(id){
+  if(!hasUpg(id)) ownedUpgrades.push(id);
+  beep(440,0.15,'sine',0.07);
+  document.getElementById('upgradeScreen').classList.remove('show');
+  enterBuild();
+}
+
+//=================================================================
+// Tutorial system
+//=================================================================
+const TUT_STEPS = [
+  {who:'LADY BORKSWORTH', msg:'Welcome to the siege, commander. First, BUILD your defenses. Select STONE and click in the glowing zone to place walls.'},
+  {who:'LADY BORKSWORTH', msg:'Stack blocks to protect your king. Then recruit a UNIT — try a SOLDIER — and place it in your zone.'},
+  {who:'LADY BORKSWORTH', msg:'When ready, press COMMENCE SIEGE. Aim your cannon by moving the mouse, and CLICK to fire. Destroy the enemy king!'},
+];
+let tutStep=0, tutActive=false;
+function startTutorial(){
+  tutActive=true; tutStep=0; showTutStep();
+}
+function showTutStep(){
+  if(tutStep>=TUT_STEPS.length){ document.getElementById('tut').classList.remove('show'); return; }
+  const s = TUT_STEPS[tutStep];
+  document.getElementById('tutWho').textContent = s.who;
+  document.getElementById('tutMsg').textContent = s.msg;
+  document.getElementById('tut').classList.add('show');
+}
+function tutBattleHint(){
+  document.getElementById('tutWho').textContent='LADY BORKSWORTH';
+  document.getElementById('tutMsg').textContent='Aim with the mouse, CLICK to fire your cannon. Bring down their walls and king!';
+  document.getElementById('tut').classList.add('show');
+  setTimeout(()=> document.getElementById('tut').classList.remove('show'), 4000);
+}
+document.getElementById('tutNext').addEventListener('click', ()=>{
+  tutStep++;
+  if(tutStep>=TUT_STEPS.length){ document.getElementById('tut').classList.remove('show'); }
+  else showTutStep();
+});
+
+//=================================================================
+// Start flow
+//=================================================================
+function startGame(isTut){
+  isTutorial = isTut;
+  ownedUpgrades = [];
+  round = 1; gold = 120; coCharge = 0; coPowerUses = 0;
+  player = null; enemy = null;
+  document.getElementById('title').classList.add('hide');
+  if(isTut){
+    selectedCommander = 'borksworth';
+    beginCampaign();
+  } else {
+    showStory();
+  }
+}
+function beginCampaign(){
+  player = newKing('left', COMMANDERS[selectedCommander].col);
+  enterBuild();
+}
+document.getElementById('playBtn').addEventListener('click', ()=> startGame(false));
+document.getElementById('tutBtn').addEventListener('click', ()=> startGame(true));
+
+//=================================================================
+// Keyboard helpers
+//=================================================================
+window.addEventListener('keydown', ev=>{
+  if(phase===PHASE.BATTLE){
+    if(ev.key===' '){ fireCannon(); ev.preventDefault(); }
+    if(ev.key==='1') { selAmmo='ball'; refreshAmmoButtons(); }
+    if(ev.key==='2') { selAmmo='bomb'; refreshAmmoButtons(); }
+    if(ev.key==='3') { selAmmo='spread'; refreshAmmoButtons(); }
+    if(ev.key==='q' || ev.key==='Q') activateCoPower();
+  }
+  if(phase===PHASE.BUILD){
+    if(ev.key==='Enter') commenceSiege();
+    if(ev.key==='1'){ selMat='wood'; selUnit=null; eraseMode=false; refreshBuildButtons(); }
+    if(ev.key==='2'){ selMat='stone'; selUnit=null; eraseMode=false; refreshBuildButtons(); }
+    if(ev.key==='3'){ selMat='iron'; selUnit=null; eraseMode=false; refreshBuildButtons(); }
+  }
+});
+
+//=================================================================
+// Main loop
+//=================================================================
+initBats();
+function loop(){
+  update();
+  render();
+  if(phase===PHASE.BUILD || phase===PHASE.BATTLE) updateHud();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-/* expose for debugging */
-window.SPITZ={get state(){return state;}, players:()=>players};
 </script>
 </body>
 </html>
