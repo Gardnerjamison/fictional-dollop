@@ -119,6 +119,7 @@ canvas#screen{image-rendering:pixelated;image-rendering:crisp-edges;display:bloc
       <span class="pill" id="hudPhase">BUILD</span>
       <span class="pill" id="hudGold">GOLD 0</span>
       <span class="pill" id="hudCo">CO: 0%</span>
+      <span class="pill" id="hudTurn" style="display:none;"></span>
     </div>
   </div>
 
@@ -204,7 +205,10 @@ canvas#screen{image-rendering:pixelated;image-rendering:crisp-edges;display:bloc
     <div class="box panel gothic">
       <h1 id="overH">DEFEAT</h1>
       <p id="overP">Fanghold has fallen.</p>
-      <button class="mbtn" id="overBtn">RETURN TO TITLE</button>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="mbtn" id="rematchBtn">REMATCH</button>
+        <button class="mbtn" id="overBtn">RETURN TO TITLE</button>
+      </div>
     </div>
   </div>
 </div>
@@ -314,14 +318,20 @@ let stunTimer = 0;    // frames of tidal-wave stun on enemy units
 
 // ---- Upgrades ----
 const UPGRADES_POOL = [
-  {id:'iron_walls',   name:'IRON WALLS',   desc:'+50% block max HP',          icon:'🏰'},
-  {id:'veterans',     name:'VETERANS',     desc:'Units: +35% HP & +20% dmg',  icon:'⚔'},
-  {id:'ammo_cache',   name:'AMMO CACHE',   desc:'+1 shot per battle',         icon:'●'},
-  {id:'master_gunner',name:'MASTER GUNNER',desc:'+25 cannon damage',          icon:'✦'},
-  {id:'royal_guard',  name:'ROYAL GUARD',  desc:'King +100 HP; restore 50',   icon:'♛'},
-  {id:'swift_march',  name:'SWIFT MARCH',  desc:'Units 40% faster',           icon:'»'},
-  {id:'barricade',    name:'BARRICADE',    desc:'6 free stone blocks each build', icon:'▪'},
-  {id:'berserker',    name:'BERSERKER',    desc:'Units: 2× dmg, -50% HP', icon:'†'},
+  {id:'iron_walls',   name:'IRON WALLS',    desc:'+50% block max HP',                           icon:'🏰'},
+  {id:'veterans',     name:'VETERANS',      desc:'Units: +35% HP & +20% dmg',                   icon:'⚔'},
+  {id:'ammo_cache',   name:'AMMO CACHE',    desc:'+1 shot per battle',                           icon:'●'},
+  {id:'master_gunner',name:'MASTER GUNNER', desc:'+25 cannon damage',                            icon:'✦'},
+  {id:'royal_guard',  name:'ROYAL GUARD',   desc:'King +100 HP; restore 50',                     icon:'♛'},
+  {id:'swift_march',  name:'SWIFT MARCH',   desc:'Units 40% faster',                             icon:'»'},
+  {id:'barricade',    name:'BARRICADE',     desc:'6 free stone blocks each build',                icon:'▪'},
+  {id:'berserker',    name:'BERSERKER',     desc:'Units: 2× dmg, -50% HP',                       icon:'†'},
+  {id:'ricochet',     name:'RICOCHET',      desc:'Cannonballs bounce once off walls',             icon:'↩'},
+  {id:'chain_shot',   name:'CHAIN SHOT',    desc:'Each wall hit spawns a second mini-ball',       icon:'⛓'},
+  {id:'bounty',       name:'BOUNTY',        desc:'+15 gold per enemy unit killed',                icon:'💰'},
+  {id:'wolf_pack',    name:'WOLF PACK',     desc:'Start each battle with 2 free soldiers',        icon:'🐺'},
+  {id:'cursed_stone', name:'CURSED STONE',  desc:'Enemy blocks explode (30 AoE) on destroy',     icon:'💀'},
+  {id:'last_stand',   name:'LAST STAND',    desc:'Below 25% king HP: shots deal 2× damage',      icon:'☠'},
 ];
 let ownedUpgrades = [];
 let upgradeChoices = [];
@@ -342,7 +352,8 @@ let shotsLeft = 0;
 let muted = false;
 let screenFlash = 0;
 let battleTurn = 'player';  // 'player' | 'enemy' | 'resolve'
-let turnPause  = 0;          // frames to wait before turn is actionable
+let turnPause  = 0;
+let hitCombo   = 0;
 
 // player object
 function newKing(side, col){
@@ -464,13 +475,28 @@ function floater(x,y,txt,col){
 //=================================================================
 function damageBlock(b, dmg){
   b.hp -= dmg; b.hit = 10;
-  if(b.side==='right'){ // damage to ENEMY block earns charge for some COs
+  if(b.side==='right'){
     const cmd = COMMANDERS[selectedCommander];
     coCharge = Math.min(cmd.maxCharge, coCharge + cmd.chargeRate(dmg,1,0));
   }
   if(b.hp <= 0){
     spawnParticles(b.x+TILE/2, b.y+TILE/2, 10, '#6a5a78', 2);
     beep(120,0.1,'square',0.05);
+    if(b.side==='right' && hasUpg('cursed_stone')){
+      spawnParticles(b.x+TILE/2, b.y+TILE/2, 20, '#ff4020', 3.5);
+      screenFlash = Math.max(screenFlash, 5);
+      const ex = b.x+TILE/2, ey = b.y+TILE/2;
+      for(const eb of eBlocks){
+        if(eb.hp<=0) continue;
+        const d = Math.hypot((eb.x+TILE/2)-ex, (eb.y+TILE/2)-ey);
+        if(d < 30 && d > 0) damageBlock(eb, 30*(1-d/30));
+      }
+      for(const eu of eUnits){
+        if(eu.dead) continue;
+        const d = Math.hypot(eu.x-ex, eu.y-ey);
+        if(d < 30) damageUnit(eu, 30*(1-d/30), true);
+      }
+    }
   }
 }
 function damageUnit(u, dmg, fromPlayer){
@@ -482,6 +508,7 @@ function damageUnit(u, dmg, fromPlayer){
     if(fromPlayer && u.side==='right'){
       const cmd = COMMANDERS[selectedCommander];
       coCharge = Math.min(cmd.maxCharge, coCharge + cmd.chargeRate(0,0,1));
+      if(hasUpg('bounty')){ gold += 15; floater(u.x, u.y-24, '+15g', '#ffd040'); }
     }
   }
 }
@@ -509,7 +536,9 @@ function cannonDamage(){
   d += cmd.bonusDmg;
   if(hasUpg('master_gunner')) d += 25;
   if(coPowerUses > 0) d *= 3;
-  return d;
+  if(hasUpg('last_stand') && player && player.hp/player.maxhp < 0.25) d *= 2;
+  if(hitCombo >= 2) d *= (1 + hitCombo * 0.2);
+  return Math.round(d);
 }
 // Brute-force a firing solution for the PLAYER cannon (fires rightward).
 function playerSolve(x0,y0,tx,ty){
@@ -551,6 +580,7 @@ function fireCannon(){
     projectiles.push(makeProj(cx,cy,ang,pow,dmg,selAmmo,AMMO[selAmmo].splash,'left'));
   }
   if(usedFury) screenFlash = 8;
+  if(shotsLeft <= 0) setTimeout(endPlayerTurn, 600);
   updateHud();
 }
 function makeProj(x,y,ang,pow,dmg,kind,splash,side){
@@ -819,7 +849,6 @@ function updateProjectiles(){
     // ground
     if(p.y >= GROUND_Y-2){ hit = true; }
     // hit blocks
-    // a cannon only strikes the OPPONENT's fortifications (never its own wall)
     const allBlocks = p.side==='left'? [eBlocks] : [pBlocks];
     if(!hit){
       for(const arr of allBlocks){
@@ -827,7 +856,24 @@ function updateProjectiles(){
           if(b.hp<=0) continue;
           if(p.x > b.x && p.x < b.x+TILE && p.y > b.y && p.y < b.y+TILE){
             damageBlock(b, p.dmg);
-            hit = true; break;
+            if(p.side==='left') hitCombo++;
+            // ricochet: bounce once
+            if(hasUpg('ricochet') && !p._bounced && !p.isArrow){
+              p._bounced = true;
+              p.vy = -Math.abs(p.vy)*0.7;
+              p.dmg = Math.round(p.dmg*0.55);
+              hit = false;
+            } else {
+              hit = true;
+            }
+            // chain shot: spawn mini-ball
+            if(!p._chained && hasUpg('chain_shot') && !p.isArrow && p.side==='left'){
+              p._chained = true;
+              const mini = makeProj(p.x, p.y, p.vx>0?-0.8:0.8, 4.5, Math.round(p.dmg*0.4), 'ball', 0, 'left');
+              mini._chained = true; mini._bounced = true;
+              projectiles.push(mini);
+            }
+            break;
           }
         }
         if(hit) break;
@@ -840,6 +886,7 @@ function updateProjectiles(){
         if(u.dead) continue;
         if(Math.abs(u.x-p.x)<6 && Math.abs((u.y-6)-p.y)<10){
           damageUnit(u, p.dmg, p.side==='left');
+          if(p.side==='left') hitCombo++;
           hit = true; break;
         }
       }
@@ -849,12 +896,14 @@ function updateProjectiles(){
       const k = p.side==='left'? enemy : player;
       if(!k.dead && Math.abs(k.x-p.x)<20 && p.y > k.y-26 && p.y < k.y+8){
         damageKing(k, p.dmg, p.side==='left');
+        if(p.side==='left') hitCombo++;
         hit = true;
       }
     }
     if(hit || p.life<=0){
       if(hit){
         spawnParticles(p.x, p.y, p.isArrow?3:8, p.isArrow?'#caa060':'#ffaa40', 2);
+        if(p.side==='left' && hitCombo >= 2) floater(p.x, p.y-20, 'COMBO ×'+hitCombo+'!', '#ffd040');
         // splash
         if(p.splash>0){
           spawnParticles(p.x, p.y, 14, '#ff8030', 3);
@@ -1492,7 +1541,7 @@ function enterBuild(){
 
   pBlocks = []; eBlocks = []; pUnits = []; eUnits = [];
   projectiles = []; particles = []; floaters = [];
-  coPowerUses = 0; stunTimer = 0; divineWind = 0;
+  coPowerUses = 0; stunTimer = 0; divineWind = 0; hitCombo = 0; battleTurn = 'player';
 
   if(hasUpg('barricade')){
     const startX = P_ZONE.x1 - TILE*3;
@@ -1526,14 +1575,18 @@ function commenceSiege(){
   if(phase!==PHASE.BUILD) return;
   phase = PHASE.BATTLE;
   battleTurn = 'player';
-  turnPause  = 60;  // brief grace before player can fire
+  turnPause  = 60;
+  hitCombo   = 0;
   shotsLeft  = shotsPerBattle();
   selAmmo    = 'ball';
   aiCannonCd = 0;
   aiShotsLeft = 3 + Math.floor(round*0.8);
-  // bulldog passive: suppress one enemy shot
   if(COMMANDERS[selectedCommander].suppressEnemy)
     aiShotsLeft = Math.max(1, aiShotsLeft - COMMANDERS[selectedCommander].suppressEnemy);
+  if(hasUpg('wolf_pack')){
+    pUnits.push(makeUnit('soldier', P_ZONE.x1 - 30, 'left'));
+    pUnits.push(makeUnit('soldier', P_ZONE.x1 - 50, 'left'));
+  }
   document.getElementById('buildBar').classList.remove('show');
   const bb = document.getElementById('battleBar');
   bb.classList.add('show');
@@ -1611,6 +1664,19 @@ function updateHud(){
   document.getElementById('coCharge').textContent = s;
   if(coCharge >= cmd.maxCharge){ cob.classList.add('ready'); cob.classList.remove('lock'); }
   else { cob.classList.remove('ready'); cob.classList.add('lock'); }
+  const turnEl = document.getElementById('hudTurn');
+  if(phase === PHASE.BATTLE){
+    turnEl.style.display = '';
+    if(battleTurn === 'player'){
+      turnEl.textContent = '◆ YOUR TURN';
+      turnEl.style.color = '#80d080';
+    } else {
+      turnEl.textContent = '◆ ENEMY TURN';
+      turnEl.style.color = '#d06060';
+    }
+  } else {
+    turnEl.style.display = 'none';
+  }
 }
 function refreshBuildButtons(){
   document.querySelectorAll('#buildBar [data-mat]').forEach(b=>{
@@ -1643,6 +1709,13 @@ document.getElementById('endTurnBtn').addEventListener('click', ()=>{ if(phase==
 document.getElementById('muteBtn').addEventListener('click', ()=>{ muted=!muted; document.getElementById('muteBtn').textContent = muted?'MUTE':'SND'; });
 document.getElementById('quitBtn').addEventListener('click', ()=> location.reload());
 document.getElementById('overBtn').addEventListener('click', ()=> location.reload());
+document.getElementById('rematchBtn').addEventListener('click', ()=>{
+  document.getElementById('over').classList.remove('show');
+  ownedUpgrades = [];
+  round = 1; gold = 120; coCharge = 0; coPowerUses = 0; divineWind = 0; hitCombo = 0; battleTurn = 'player';
+  player = null;
+  beginCampaign();
+});
 
 //=================================================================
 // Banner
@@ -1843,7 +1916,7 @@ document.getElementById('tutNext').addEventListener('click', ()=>{
 function startGame(isTut){
   isTutorial = isTut;
   ownedUpgrades = [];
-  round = 1; gold = 120; coCharge = 0; coPowerUses = 0;
+  round = 1; gold = 120; coCharge = 0; coPowerUses = 0; divineWind = 0; hitCombo = 0; battleTurn = 'player';
   player = null; enemy = null;
   document.getElementById('title').classList.add('hide');
   if(isTut){
@@ -1871,6 +1944,7 @@ window.addEventListener('keydown', ev=>{
     if(ev.key==='2') { selAmmo='bomb';   refreshAmmoButtons(); }
     if(ev.key==='3') { selAmmo='spread'; refreshAmmoButtons(); }
     if(ev.key==='q' || ev.key==='Q') activateCoPower();
+    if(ev.key==='e' || ev.key==='E') endPlayerTurn();
   }
   if(phase===PHASE.BUILD){
     if(ev.key==='Enter') commenceSiege();
