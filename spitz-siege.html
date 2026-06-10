@@ -70,10 +70,13 @@ canvas#screen{image-rendering:pixelated;image-rendering:crisp-edges;display:bloc
 #cmdSelect h2{color:#d4a820;letter-spacing:6px;font-size:18px;margin-bottom:6px;text-shadow:2px 2px 0 #000;text-align:center;}
 #cmdSelect .csub{color:#6a5a7a;font-size:10px;letter-spacing:3px;margin-bottom:20px;text-align:center;}
 #cmdSelect .cards{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
-.cmd-card{background:#0e0820;border:2px solid #3a2a5a;padding:16px;width:170px;cursor:pointer;position:relative;text-align:center;transition:all .12s;}
+#cmdSelect.show{overflow-y:auto;padding:24px 0;justify-content:flex-start;}
+#cmdSelect .cards{max-width:1000px;}
+.cmd-card{background:#0e0820;border:2px solid #3a2a5a;padding:14px;width:150px;cursor:pointer;position:relative;text-align:center;transition:all .12s;}
 .cmd-card:hover,.cmd-card.sel{border-color:#d4a820;background:#1a1030;box-shadow:0 0 20px rgba(180,120,0,0.25);}
 .cmd-card canvas{display:block;margin:0 auto 10px;image-rendering:pixelated;}
-.cmd-card .cname{color:#e8d4a0;font-weight:bold;font-size:13px;letter-spacing:2px;margin-bottom:2px;}
+.cmd-card .cfac{font-size:9px;font-weight:bold;letter-spacing:2px;margin-bottom:8px;text-shadow:1px 1px 0 #000;}
+.cmd-card .cname{color:#e8d4a0;font-weight:bold;font-size:12px;letter-spacing:1px;margin-bottom:2px;}
 .cmd-card .ctitle{color:#7a6a8a;font-size:9px;letter-spacing:2px;margin-bottom:8px;}
 .cmd-card .cpass{color:#a090b8;font-size:9px;line-height:1.5;margin-bottom:6px;min-height:32px;}
 .cmd-card .cpow{color:#c060f0;font-size:9px;line-height:1.5;border-top:1px solid #2a1a3a;padding-top:6px;}
@@ -183,8 +186,8 @@ canvas#screen{image-rendering:pixelated;image-rendering:crisp-edges;display:bloc
   </div>
 
   <div id="cmdSelect">
-    <h2>CHOOSE YOUR COMMANDER</h2>
-    <div class="csub">ADVANCED WARS STYLE &mdash; EACH HAS A UNIQUE CO POWER</div>
+    <h2>CHOOSE YOUR FACTION</h2>
+    <div class="csub">SIX GREAT PACKS &mdash; EACH COMMANDER HAS A UNIQUE CO POWER</div>
     <div class="cards" id="cmdCards"></div>
     <div class="cfoot"><button class="tbtn go" id="cmdChoose">CHOOSE</button></div>
   </div>
@@ -250,30 +253,62 @@ const AMMO = {
   spread:{dmg:26,  splash:0,  name:'GRAPE', pellets:5},
 };
 
-// ---- Commander system ----
+// ---- Factions & commanders (one unique CO per faction) ----
+// every entry carries the full modifier block so the rest of the code can
+// read any bonus off any commander without guarding for undefined
 const COMMANDERS = {
-  borksworth: {name:'Lady Borksworth', title:'Celtic Siege-Master', col:'#c85a2a',
+  corgi: {fac:'CELTIC CORGIS', col:'#c85a2a', breed:'corgi',
+    name:'Lady Borksworth', title:'Celtic Siege-Master',
     passive:'RAMPART: +1 shot/battle', powerName:'CELTIC FURY',
-    powerDesc:'Next 2 shots deal 3× damage', extraShots:1, bonusDmg:0,
-    speedBonus:0, bio:'She never surrendered a castle. Or a tennis ball.',
-    chargeRate: (dmg)=>dmg/10, maxCharge:100, breed:'corgi'},
-  ironpaw: {name:'Bork Ironpaw', title:'Norse Warchief', col:'#5a8fc8',
+    powerDesc:'Next 2 shots deal 3× damage',
+    extraShots:1, bonusDmg:0, speedBonus:0, unitDmg:0, wallBonus:0, goldBonus:0,
+    bio:'She never surrendered a castle. Or a tennis ball.',
+    chargeRate: (dmg)=>dmg/10, maxCharge:100},
+  bulldog: {fac:'BRITISH BULLDOGS', col:'#a03030', breed:'bulldog',
+    name:'Lord Winston Pugsworth III', title:'Bulwark of the Isles',
+    passive:'STIFF UPPER LIP: walls +25% HP', powerName:'THE BULWARK',
+    powerDesc:'Repair all walls; king heals 40 HP',
+    extraShots:0, bonusDmg:0, speedBonus:0, unitDmg:0, wallBonus:0.25, goldBonus:0,
+    bio:'Has never once retreated. Has frequently napped mid-siege.',
+    chargeRate: (dmg)=>dmg/12, maxCharge:100},
+  laika: {fac:'VIKING YAKUTIAN LAIKAS', col:'#5a8fc8', breed:'laika',
+    name:'Jarl Bork Ironpaw', title:'Norse Warchief',
     passive:'HEAVY ORD.: +25 cannon dmg', powerName:'BARRAGE',
-    powerDesc:'Fire 3 spread shots instantly', extraShots:0, bonusDmg:25,
-    speedBonus:0, bio:"His howl brought down more walls than any siege engine.",
-    chargeRate: (dmg,blocks)=>(blocks||0)*25, maxCharge:100, breed:'laika'},
-  pharound: {name:'Pharound Rex', title:'Desert Pharaoh', col:'#c8a020',
-    passive:'SWIFT SANDS: units +35% speed', powerName:'DESERT WRATH',
-    powerDesc:'All enemies stunned 3s; King -40 HP', extraShots:0, bonusDmg:0,
-    speedBonus:0.35, bio:"Ancient. Inscrutable. Offended by rain.",
-    chargeRate: (dmg,blocks,kills)=>(kills||0)*33, maxCharge:100, breed:'pharaoh'},
+    powerDesc:'Fire 3 spread shots instantly',
+    extraShots:0, bonusDmg:25, speedBonus:0, unitDmg:0, wallBonus:0, goldBonus:0,
+    bio:'His howl brought down more walls than any siege engine.',
+    chargeRate: (dmg,blocks)=>(blocks||0)*25, maxCharge:100},
+  pwd: {fac:'PORTUGUESE WATER DOGS', col:'#2a8a9a', breed:'pwd',
+    name:'Capitã Ondina Marés', title:'Admiral of the Salt Coast',
+    passive:'TAILWIND: units +30% speed', powerName:'TIDAL WAVE',
+    powerDesc:'A wave smashes enemy walls & units',
+    extraShots:0, bonusDmg:0, speedBonus:0.30, unitDmg:0, wallBonus:0, goldBonus:0,
+    bio:'She has boarded ships that were not, strictly speaking, at sea.',
+    chargeRate: (dmg)=>dmg/11, maxCharge:100},
+  shiba: {fac:'JAPANESE SHIBA INU', col:'#d05828', breed:'shiba',
+    name:'Shōgun Akamaru', title:'The Crimson Wind',
+    passive:'BUSHIDO: units +25% dmg', powerName:'DIVINE WIND',
+    powerDesc:'Next shot auto-aims at enemy king, 2× dmg',
+    extraShots:0, bonusDmg:0, speedBonus:0, unitDmg:0.25, wallBonus:0, goldBonus:0,
+    bio:'Speaks rarely. Stares often. Wins always.',
+    chargeRate: (dmg,blocks,kills)=>(kills||0)*34 + dmg/16, maxCharge:100},
+  chow: {fac:'CHINESE CHOW CHOWS', col:'#c8a020', breed:'chow',
+    name:'Empress Chow Mei-Long', title:'The Lion Throne',
+    passive:'SILK ROAD: +35 gold each round', powerName:'FIREWORKS',
+    powerDesc:'5 rockets rain down on the enemy',
+    extraShots:0, bonusDmg:0, speedBonus:0, unitDmg:0, wallBonus:0, goldBonus:35,
+    bio:'Her dynasty is older than the bone itself. Probably.',
+    chargeRate: (dmg)=>dmg/12, maxCharge:100},
 };
-let selectedCommander = 'borksworth';
-let pendingCommander = 'borksworth';
+const FACTION_KEYS = Object.keys(COMMANDERS);
+let selectedCommander = 'corgi';
+let pendingCommander = 'corgi';
+let enemyFaction = 'laika';   // re-rolled each round, never the player's own
 let coCharge = 0;
 let coActive = 0;     // frames remaining of active CO visual flash
 let coPowerUses = 0;  // shots remaining for celtic fury
-let stunTimer = 0;    // frames of pharound wrath stun on enemy units
+let divineWind = 0;   // shiba: next shot auto-aims at the enemy king
+let stunTimer = 0;    // frames of tidal-wave stun on enemy units
 
 // ---- Upgrades ----
 const UPGRADES_POOL = [
@@ -374,13 +409,16 @@ function beep(freq, dur, type, vol){
 //=================================================================
 // Block / unit factories (apply upgrades)
 //=================================================================
-function blockMaxHp(mat){
+function blockMaxHp(mat, side){
   let hp = MAT[mat].hp;
-  if(hasUpg('iron_walls')) hp = Math.round(hp*1.5);
+  if(side==='left'){
+    if(hasUpg('iron_walls')) hp = Math.round(hp*1.5);
+    hp = Math.round(hp * (1 + COMMANDERS[selectedCommander].wallBonus));
+  }
   return hp;
 }
 function makeBlock(mat, gx, gy, side){
-  const max = blockMaxHp(mat);
+  const max = blockMaxHp(mat, side);
   return {mat, x:gx, y:gy, side, hp:max, max, hit:0};
 }
 function unitStats(type){
@@ -393,10 +431,14 @@ function unitStats(type){
 }
 function makeUnit(type, x, side){
   const u = UNIT[type], st = unitStats(type);
-  let spd = st.spd;
-  // commander speed bonus applies to player units only
-  if(side==='left') spd *= (1 + COMMANDERS[selectedCommander].speedBonus);
-  return {type, side, x, y:GROUND_Y-12, hp:st.hp, maxhp:st.hp, dmg:st.dmg,
+  let spd = st.spd, dmg = st.dmg;
+  // commander bonuses apply to player units only
+  if(side==='left'){
+    const cmd = COMMANDERS[selectedCommander];
+    spd *= (1 + cmd.speedBonus);
+    dmg = Math.round(dmg * (1 + cmd.unitDmg));
+  }
+  return {type, side, x, y:GROUND_Y-12, hp:st.hp, maxhp:st.hp, dmg,
     rng:u.rng, spd, col:u.col, cd:0, dead:false, target:null, anim:Math.random()*6.28, stunned:0};
 }
 
@@ -465,23 +507,43 @@ function cannonDamage(){
   if(coPowerUses > 0) d *= 3;
   return d;
 }
+// Brute-force a firing solution for the PLAYER cannon (fires rightward).
+function playerSolve(x0,y0,tx,ty){
+  let best=null, bestErr=1e9;
+  for(let pow=8; pow<=BALL_PMAX; pow+=0.5){
+    for(let deg=-15; deg>=-78; deg-=3){
+      const ang = deg*Math.PI/180;   // negative = up & to the right
+      const e = shotError(x0,y0,ang,pow,tx,ty);
+      if(e<bestErr){ bestErr=e; best={ang,pow}; }
+    }
+  }
+  return best;
+}
 function fireCannon(){
   if(phase !== PHASE.BATTLE) return;
   if(shotsLeft <= 0) return;
   shotsLeft--;
   const cx = player.x + 12, cy = player.y - 6;
-  const dmg = cannonDamage();
+  let dmg = cannonDamage();
+  let ang = aimAngle, pow = aimPower;
   const usedFury = coPowerUses > 0;
   if(usedFury) coPowerUses--;
+  // shiba DIVINE WIND: override aim with a perfect solution at the enemy king
+  if(divineWind > 0){
+    divineWind--;
+    const sol = playerSolve(cx, cy, enemy.x, enemy.y-8);
+    if(sol){ ang = sol.ang; pow = sol.pow; }
+    dmg *= 2;
+    screenFlash = 10;
+  }
   beep(180,0.12,'square',0.07);
   spawnParticles(cx, cy, 8, '#ffb040', 2.2);
   if(selAmmo === 'spread'){
     for(let i=0;i<AMMO.spread.pellets;i++){
-      const ang = aimAngle + (i-2)*0.10;
-      projectiles.push(makeProj(cx,cy,ang,aimPower,dmg,'ball',0,'left'));
+      projectiles.push(makeProj(cx,cy,ang+(i-2)*0.10,pow,dmg,'ball',0,'left'));
     }
   } else {
-    projectiles.push(makeProj(cx,cy,aimAngle,aimPower,dmg,selAmmo,AMMO[selAmmo].splash,'left'));
+    projectiles.push(makeProj(cx,cy,ang,pow,dmg,selAmmo,AMMO[selAmmo].splash,'left'));
   }
   if(usedFury) screenFlash = 8;
   updateHud();
@@ -502,27 +564,48 @@ function activateCoPower(){
   coActive = 60;
   screenFlash = 14;
   beep(420,0.25,'sawtooth',0.08);
-  if(selectedCommander === 'borksworth'){
+  if(selectedCommander === 'corgi'){
     coPowerUses = 2;
     showBanner('CELTIC FURY', 'Next 2 shots deal 3× damage!');
-  } else if(selectedCommander === 'ironpaw'){
+  } else if(selectedCommander === 'bulldog'){
+    for(const b of pBlocks){ b.hp = b.max; b.hit = 6; }
+    player.hp = Math.min(player.maxhp, player.hp + 40);
+    spawnParticles(player.x, player.y-10, 16, '#d4a820', 2);
+    showBanner('THE BULWARK', 'Walls repaired! King heals 40 HP!');
+  } else if(selectedCommander === 'laika'){
     // fire 3 spread shots at enemy king
     const cx = player.x + 12, cy = player.y - 6;
-    const tx = enemy.x, ty = enemy.y - 8;
-    const baseAng = Math.atan2(ty-cy, tx-cx);
+    const sol = playerSolve(cx, cy, enemy.x, enemy.y-8);
+    const baseAng = sol? sol.ang : -0.8, pow = sol? sol.pow : 10;
     for(let i=0;i<3;i++){
-      const ang = baseAng + (i-1)*0.12;
-      const pow = 9.5;
       const dmg = AMMO.ball.dmg + cmd.bonusDmg + (hasUpg('master_gunner')?25:0);
-      projectiles.push(makeProj(cx,cy,ang,pow,dmg,'ball',0,'left'));
+      projectiles.push(makeProj(cx,cy,baseAng+(i-1)*0.08,pow,dmg,'ball',0,'left'));
     }
     showBanner('BARRAGE!', 'Three shots fly at the enemy king!');
-  } else if(selectedCommander === 'pharound'){
-    stunTimer = 180;
-    for(const u of eUnits) if(!u.dead) u.stunned = 180;
-    damageKing(enemy, 40, true);
-    showBanner('DESERT WRATH', 'Enemies stunned! King takes 40 damage!');
+  } else if(selectedCommander === 'pwd'){
+    // a wave rolls across the enemy field: damages walls, units, stuns
+    for(const b of eBlocks) damageBlock(b, 60);
+    for(const u of eUnits){ if(!u.dead){ damageUnit(u, 45, true); u.stunned = 120; } }
+    stunTimer = 120;
+    for(let i=0;i<28;i++){
+      particles.push({x:E_ZONE.x0+Math.random()*(E_ZONE.x1-E_ZONE.x0),
+        y:GROUND_Y-Math.random()*40, vx:1.5+Math.random(), vy:-Math.random()*2,
+        life:25+Math.random()*15, col:'#48b0c0'});
+    }
+    showBanner('TIDAL WAVE', 'The sea crashes through the enemy lines!');
+  } else if(selectedCommander === 'shiba'){
+    divineWind = 1;
+    showBanner('DIVINE WIND', 'Next shot strikes the enemy king — 2× damage!');
+  } else if(selectedCommander === 'chow'){
+    // 5 rockets fall from the sky onto the enemy field
+    for(let i=0;i<5;i++){
+      const tx = E_ZONE.x0 + Math.random()*(E_ZONE.x1-E_ZONE.x0);
+      projectiles.push({x:tx, y:-12-i*18, vx:(Math.random()-0.5)*0.6, vy:2.2,
+        dmg:30, kind:'bomb', splash:22, side:'left', life:300, isArrow:false});
+    }
+    showBanner('FIREWORKS', 'Rockets rain down upon the enemy!');
   }
+  coCharge = 0;   // instant power damage must not recharge the meter
   updateHud();
 }
 
@@ -637,7 +720,7 @@ function updateUnit(u){
   if(u.dead) return;
   if(u.cd>0) u.cd--;
   if(u.stunned>0){ u.stunned--; return; }
-  // enemy units stunned by pharound wrath
+  // enemy units stunned by tidal wave
   if(u.side==='right' && stunTimer>0) return;
   const dir = u.side==='left'? 1 : -1;
   const foeKing = u.side==='left'? enemy : player;
@@ -1035,8 +1118,8 @@ function drawCannon(k, isPlayer){
 
 function drawKing(k, isPlayer){
   const x=Math.round(k.x), y=Math.round(k.y);
-  const cmd = isPlayer? COMMANDERS[selectedCommander] : COMMANDERS['ironpaw'];
-  const body = isPlayer? cmd.col : '#786860';
+  const cmd = isPlayer? COMMANDERS[selectedCommander] : COMMANDERS[enemyFaction];
+  const body = cmd.col;
   // cloak/cape behind
   g.fillStyle='#1a0a28'; g.fillRect(x-9, y-18, 18, 26);
   g.fillStyle='#240e34'; g.fillRect(x-9, y-18, 3, 26); g.fillRect(x+6, y-18, 3, 26);
@@ -1344,7 +1427,10 @@ function enterBuild(){
   phase = PHASE.BUILD;
   player = player || newKing('left', COMMANDERS[selectedCommander].col);
   player.col = COMMANDERS[selectedCommander].col;
-  enemy = newKing('right', '#5a8fc8');
+  // each round a different rival faction marches on Fanghold
+  const rivals = FACTION_KEYS.filter(k=> k!==selectedCommander);
+  enemyFaction = rivals[(Math.random()*rivals.length)|0];
+  enemy = newKing('right', COMMANDERS[enemyFaction].col);
   enemy.maxhp = 200 + round*45; enemy.hp = enemy.maxhp;
   let baseMax = 420 + (hasUpg('royal_guard')?100:0);
   player.maxhp = baseMax;
@@ -1354,7 +1440,7 @@ function enterBuild(){
 
   pBlocks = []; eBlocks = []; pUnits = []; eUnits = [];
   projectiles = []; particles = []; floaters = [];
-  coPowerUses = 0; stunTimer = 0;
+  coPowerUses = 0; stunTimer = 0; divineWind = 0;
 
   if(hasUpg('barricade')){
     const startX = P_ZONE.x1 - TILE*3;
@@ -1371,7 +1457,7 @@ function enterBuild(){
 
   aiBuild();
 
-  gold += 60 + round*30;
+  gold += 60 + round*30 + COMMANDERS[selectedCommander].goldBonus;
   camX = 0;
   selMat='stone'; selUnit=null; eraseMode=false;
   refreshBuildButtons();
@@ -1395,7 +1481,7 @@ function commenceSiege(){
   document.getElementById('battleBar').classList.add('show');
   refreshAmmoButtons();
   updateHud();
-  showBanner('SIEGE!', 'Round '+round+' begins.');
+  showBanner('SIEGE!', 'Round '+round+' — the '+COMMANDERS[enemyFaction].fac+' attack!');
   if(isTutorial) tutBattleHint();
 }
 
@@ -1403,7 +1489,7 @@ function endBattle(won){
   if(phase !== PHASE.BATTLE) return;
   document.getElementById('battleBar').classList.remove('show');
   if(won){
-    showBanner('VICTORY', 'The enemy king has fallen!');
+    showBanner('VICTORY', 'The '+COMMANDERS[enemyFaction].fac+' are routed!');
     beep(520,0.3,'sine',0.08);
     if(isTutorial){
       phase = PHASE.OVER;
@@ -1499,7 +1585,7 @@ function showBanner(h, p){
 //=================================================================
 // Story screen
 //=================================================================
-const STORY_TEXT = "The Sacred Bone of the Ancients has been stolen from the vaults beneath Castle Fanghold. Three factions now clash for dominion over its ruins: the Celtic Corgis, the Norse Laikas, and the Desert Pharaoh Hounds. Blood will be spilled. Walls will fall. Only one banner will fly above the rubble. Choose your commander.";
+const STORY_TEXT = "The Sacred Bone of the Ancients has been stolen from the vaults beneath Castle Fanghold. Six great packs now clash for dominion over its ruins: the Celtic Corgis, the British Bulldogs, the Viking Yakutian Laikas, the Portuguese Water Dogs, the Japanese Shiba Inu, and the Chow Chows of the Lion Throne. Blood will be spilled. Walls will fall. Only one banner will fly above the rubble. Choose your faction.";
 let storyInterval = null, storyIdx = 0;
 function showStory(){
   phase = PHASE.STORY;
@@ -1542,12 +1628,36 @@ function drawCmdPortrait(canvas, cmd){
   c.fillStyle=col; c.fillRect(x-12,y-18,24,30);
   c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(x+4,y-18,8,30);
   c.fillStyle=col; c.fillRect(x-11,y-34,22,16);
+  // breed-specific ears / fur
   c.fillStyle=col;
-  if(cmd.breed==='pharaoh'){ c.fillRect(x-12,y-46,7,14); c.fillRect(x+5,y-46,7,14); }
-  else { c.fillRect(x-13,y-42,8,9); c.fillRect(x+5,y-42,8,9); }
-  c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-10,y-40,4,5); c.fillRect(x+6,y-40,4,5);
+  if(cmd.breed==='corgi'){           // huge upright ears
+    c.fillRect(x-13,y-46,8,13); c.fillRect(x+5,y-46,8,13);
+    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-11,y-43,4,8); c.fillRect(x+7,y-43,4,8);
+  } else if(cmd.breed==='bulldog'){  // small folded side ears + heavy jowls
+    c.fillRect(x-14,y-36,5,8); c.fillRect(x+9,y-36,5,8);
+    c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(x-13,y-34,3,5); c.fillRect(x+10,y-34,3,5);
+    c.fillStyle='rgba(255,255,255,0.22)'; c.fillRect(x-8,y-24,16,6);
+  } else if(cmd.breed==='laika'){    // pointed ears + thick neck ruff
+    c.fillRect(x-12,y-44,7,11); c.fillRect(x+5,y-44,7,11);
+    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-10,y-41,3,6); c.fillRect(x+7,y-41,3,6);
+    c.fillStyle='rgba(255,255,255,0.12)'; c.fillRect(x-12,y-20,24,4);
+  } else if(cmd.breed==='pwd'){      // curly topknot + long floppy ears
+    c.fillRect(x-13,y-38,5,14); c.fillRect(x+8,y-38,5,14);
+    for(let i=-9;i<=9;i+=4){ c.fillRect(x+i-1,y-38+( (i/4)%2?0:-2 ),4,5); }
+    c.fillStyle='rgba(0,0,0,0.3)';
+    for(let i=-7;i<=9;i+=4){ c.fillRect(x+i-1,y-36,2,2); }
+  } else if(cmd.breed==='shiba'){    // small alert ears + white cheeks
+    c.fillRect(x-11,y-43,7,10); c.fillRect(x+4,y-43,7,10);
+    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-9,y-40,3,5); c.fillRect(x+6,y-40,3,5);
+    c.fillStyle='rgba(255,255,255,0.3)'; c.fillRect(x-11,y-28,5,8); c.fillRect(x+6,y-28,5,8);
+  } else {                           // chow: tiny ears buried in a lion mane
+    c.fillRect(x-10,y-42,6,7); c.fillRect(x+4,y-42,6,7);
+    c.fillStyle='rgba(0,0,0,0.25)';
+    c.fillRect(x-15,y-38,4,18); c.fillRect(x+11,y-38,4,18); c.fillRect(x-13,y-39,26,3);
+  }
   c.fillStyle='rgba(255,255,255,0.18)'; c.fillRect(x-4,y-24,8,5);
   c.fillStyle='#0a0408'; c.fillRect(x-2,y-22,4,3);
+  if(cmd.breed==='chow'){ c.fillStyle='#7a4a9a'; c.fillRect(x-1,y-19,3,2); }  // the famous purple tongue
   c.fillStyle='#fff0a0'; c.fillRect(x-7,y-30,3,3); c.fillRect(x+4,y-30,3,3);
   c.fillStyle='#ffd040'; c.fillRect(x-7,y-30,1,1); c.fillRect(x+4,y-30,1,1);
   c.fillStyle='#d4a820'; c.fillRect(x-11,y-50,22,4);
@@ -1560,13 +1670,15 @@ function showCmdSelect(){
   document.getElementById('cmdSelect').classList.add('show');
   const wrap = document.getElementById('cmdCards');
   wrap.innerHTML = '';
-  pendingCommander = 'borksworth';
-  for(const key of Object.keys(COMMANDERS)){
+  pendingCommander = 'corgi';
+  for(const key of FACTION_KEYS){
     const cmd = COMMANDERS[key];
     const card = document.createElement('div');
     card.className = 'cmd-card';
     card.dataset.key = key;
     if(key===pendingCommander) card.classList.add('sel');
+    const fc = document.createElement('div'); fc.className='cfac'; fc.textContent=cmd.fac;
+    fc.style.color = cmd.col; card.appendChild(fc);
     const cv = document.createElement('canvas'); cv.width=48; cv.height=64;
     card.appendChild(cv);
     const nm = document.createElement('div'); nm.className='cname'; nm.textContent=cmd.name; card.appendChild(nm);
@@ -1660,7 +1772,7 @@ function startGame(isTut){
   player = null; enemy = null;
   document.getElementById('title').classList.add('hide');
   if(isTut){
-    selectedCommander = 'borksworth';
+    selectedCommander = 'corgi';
     beginCampaign();
   } else {
     showStory();
