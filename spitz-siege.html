@@ -1221,14 +1221,38 @@ function drawKing(k, isPlayer){
   g.fillStyle=body; g.fillRect(x-7, y-14, 14, 20);
   g.fillStyle='rgba(0,0,0,0.3)'; g.fillRect(x+2, y-14, 5, 20);
   g.fillStyle='rgba(255,255,255,0.12)'; g.fillRect(x-7, y-14, 2, 20);
+  // chow gets a mane behind the head
+  if(cmd.breed==='chow'){
+    g.fillStyle=body; g.fillRect(x-9, y-24, 18, 12);
+    g.fillStyle='rgba(0,0,0,0.25)'; g.fillRect(x-9, y-24, 2, 12); g.fillRect(x+7, y-24, 2, 12);
+  }
   // head
   g.fillStyle=body; g.fillRect(x-6, y-22, 12, 9);
-  // ears
-  g.fillStyle=body; g.fillRect(x-7, y-26, 4, 5); g.fillRect(x+3, y-26, 4, 5);
-  g.fillStyle='rgba(0,0,0,0.4)'; g.fillRect(x-6, y-25, 2, 3); g.fillRect(x+4, y-25, 2, 3);
+  // breed-specific ears & markings
+  g.fillStyle=body;
+  if(cmd.breed==='corgi'){
+    g.fillRect(x-8, y-29, 4, 8); g.fillRect(x+4, y-29, 4, 8);
+    g.fillStyle='rgba(0,0,0,0.4)'; g.fillRect(x-7, y-27, 2, 5); g.fillRect(x+5, y-27, 2, 5);
+    g.fillStyle='#ece4d4'; g.fillRect(x-1, y-22, 2, 5);             // white blaze
+  } else if(cmd.breed==='bulldog'){
+    g.fillStyle='#581818'; g.fillRect(x-8, y-23, 3, 4); g.fillRect(x+5, y-23, 3, 4); // low rose ears
+    g.fillStyle='#ece4d4'; g.fillRect(x-5, y-16, 3, 3); g.fillRect(x+2, y-16, 3, 3); // jowls
+  } else if(cmd.breed==='laika'){
+    g.fillRect(x-7, y-28, 3, 7); g.fillRect(x+4, y-28, 3, 7);       // pointed ears
+    g.fillStyle='#ece4d4'; g.fillRect(x-5, y-17, 10, 3);            // white lower face
+  } else if(cmd.breed==='pwd'){
+    g.fillRect(x-8, y-24, 3, 8); g.fillRect(x+5, y-24, 3, 8);       // floppy hanging ears
+    g.fillRect(x-4, y-24, 3, 2); g.fillRect(x+1, y-25, 3, 2);       // curly top
+  } else if(cmd.breed==='shiba'){
+    g.fillRect(x-7, y-27, 4, 6); g.fillRect(x+3, y-27, 4, 6);       // alert ears
+    g.fillStyle='#f0e0c8'; g.fillRect(x-6, y-17, 3, 3); g.fillRect(x+3, y-17, 3, 3); // cream cheeks
+  } else { // chow: tiny ears atop the mane
+    g.fillStyle='rgba(0,0,0,0.35)'; g.fillRect(x-7, y-25, 3, 3); g.fillRect(x+4, y-25, 3, 3);
+  }
   // snout
   g.fillStyle='rgba(255,255,255,0.18)'; g.fillRect(x-2, y-16, 4, 3);
   g.fillStyle='#0a0408'; g.fillRect(x-1, y-15, 2, 2);
+  if(cmd.breed==='chow'){ g.fillStyle='#7a4a9a'; g.fillRect(x-1, y-13, 2, 2); } // purple tongue
   // glowing eyes
   g.fillStyle='#fff0a0'; g.fillRect(x-4, y-19, 2, 2); g.fillRect(x+2, y-19, 2, 2);
   g.fillStyle='#ffd040'; g.fillRect(x-4, y-19, 1, 1); g.fillRect(x+2, y-19, 1, 1);
@@ -1765,53 +1789,144 @@ document.getElementById('storyCont').addEventListener('click', ()=>{
 //=================================================================
 // Commander select
 //=================================================================
+// portrait helpers
+function pCrown(c,cx,top,hw){
+  c.fillStyle='#d4a820'; c.fillRect(cx-hw,top+6,hw*2,4);
+  c.fillStyle='#f0d050'; c.fillRect(cx-hw+1,top+2,3,5); c.fillRect(cx-2,top,4,7); c.fillRect(cx+hw-4,top+2,3,5);
+  c.fillStyle='#ff4040'; c.fillRect(cx-2,top+6,4,3);
+}
+function pEyes(c,lx,rx,ey){
+  c.fillStyle='#fff0a0'; c.fillRect(lx,ey,3,3); c.fillRect(rx,ey,3,3);
+  c.fillStyle='#ffd040'; c.fillRect(lx+1,ey+1,1,1); c.fillRect(rx+1,ey+1,1,1);
+}
+function pNose(c,cx,ny){
+  c.fillStyle='#0a0408'; c.fillRect(cx-2,ny,4,3);
+}
 function drawCmdPortrait(canvas, cmd){
   const c = canvas.getContext('2d');
   c.imageSmoothingEnabled=false;
-  c.clearRect(0,0,48,64);
-  const col = cmd.col;
+  const col = cmd.col, cx = 24, WHT='#ece4d4';
   c.fillStyle='#08041a'; c.fillRect(0,0,48,64);
-  const x=24, y=40;
-  c.fillStyle='#1a0a28'; c.fillRect(x-16,y-26,32,40);
-  c.fillStyle=col; c.fillRect(x-12,y-18,24,30);
-  c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(x+4,y-18,8,30);
-  c.fillStyle=col; c.fillRect(x-11,y-34,22,16);
-  // breed-specific ears / fur
-  c.fillStyle=col;
-  if(cmd.breed==='corgi'){           // huge upright ears
-    c.fillRect(x-13,y-46,8,13); c.fillRect(x+5,y-46,8,13);
-    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-11,y-43,4,8); c.fillRect(x+7,y-43,4,8);
-  } else if(cmd.breed==='bulldog'){  // small folded side ears + heavy jowls
-    c.fillRect(x-14,y-36,5,8); c.fillRect(x+9,y-36,5,8);
-    c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(x-13,y-34,3,5); c.fillRect(x+10,y-34,3,5);
-    c.fillStyle='rgba(255,255,255,0.22)'; c.fillRect(x-8,y-24,16,6);
-  } else if(cmd.breed==='laika'){    // pointed ears + thick neck ruff
-    c.fillRect(x-12,y-44,7,11); c.fillRect(x+5,y-44,7,11);
-    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-10,y-41,3,6); c.fillRect(x+7,y-41,3,6);
-    c.fillStyle='rgba(255,255,255,0.12)'; c.fillRect(x-12,y-20,24,4);
-  } else if(cmd.breed==='pwd'){      // curly topknot + long floppy ears
-    c.fillRect(x-13,y-38,5,14); c.fillRect(x+8,y-38,5,14);
-    for(let i=-9;i<=9;i+=4){ c.fillRect(x+i-1,y-38+( (i/4)%2?0:-2 ),4,5); }
+  // cloak behind
+  c.fillStyle='#1a0a28'; c.fillRect(cx-16,18,32,44);
+  // body
+  c.fillStyle=col; c.fillRect(cx-12,38,24,24);
+  c.fillStyle='rgba(0,0,0,0.3)'; c.fillRect(cx+4,38,8,24);
+  c.fillStyle='rgba(255,255,255,0.1)'; c.fillRect(cx-12,38,2,24);
+
+  if(cmd.breed==='corgi'){
+    // huge upright ears with dark inner
+    c.fillStyle=col; c.fillRect(cx-13,8,8,14); c.fillRect(cx+5,8,8,14);
+    c.fillStyle='#2a1620'; c.fillRect(cx-11,11,4,8); c.fillRect(cx+7,11,4,8);
+    // foxy head with white blaze + muzzle
+    c.fillStyle=col; c.fillRect(cx-10,18,20,18);
+    c.fillStyle=WHT; c.fillRect(cx-2,18,4,12); c.fillRect(cx-6,28,12,8);
+    pEyes(c,cx-8,cx+5,23);
+    pNose(c,cx,29);
+    c.fillStyle='#3a1410'; c.fillRect(cx-1,33,2,2);
+    // celtic gold torc at the neck
+    c.fillStyle='#d4a820'; c.fillRect(cx-9,37,18,3);
+    c.fillStyle='#f0d050'; c.fillRect(cx-9,37,2,3); c.fillRect(cx+7,37,2,3);
+    pCrown(c,cx,0,7);
+  } else if(cmd.breed==='bulldog'){
+    // wide squat head
+    c.fillStyle=col; c.fillRect(cx-14,16,28,16);
+    // small rose ears folded back at the corners
+    c.fillStyle='#581818'; c.fillRect(cx-15,13,5,6); c.fillRect(cx+10,13,5,6);
+    // forehead wrinkles
+    c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(cx-9,19,18,1); c.fillRect(cx-7,22,14,1);
+    pEyes(c,cx-10,cx+7,24);
+    // heavy hanging jowls + flat muzzle
+    c.fillStyle=WHT; c.fillRect(cx-12,28,8,9); c.fillRect(cx+4,28,8,9); c.fillRect(cx-4,27,8,8);
+    c.fillStyle='rgba(0,0,0,0.2)'; c.fillRect(cx-12,35,8,2); c.fillRect(cx+4,35,8,2);
+    pNose(c,cx,28);
+    // underbite — two little teeth jutting up
+    c.fillStyle='#3a1410'; c.fillRect(cx-3,33,6,2);
+    c.fillStyle='#fff'; c.fillRect(cx-4,33,2,2); c.fillRect(cx+3,33,2,2);
+    // regimental sash
+    c.fillStyle='#6a1020'; c.fillRect(cx-12,42,24,4);
+    pCrown(c,cx,0,11);
+  } else if(cmd.breed==='laika'){
+    // tall pointed wolf ears
+    c.fillStyle=col; c.fillRect(cx-11,7,6,13); c.fillRect(cx+5,7,6,13);
+    c.fillStyle='#1c1024'; c.fillRect(cx-9,10,3,7); c.fillRect(cx+7,10,3,7);
+    // colored cap over a white wolfish face
+    c.fillStyle=col; c.fillRect(cx-10,16,20,8);
+    c.fillStyle=WHT; c.fillRect(cx-9,22,18,10);
+    // long snout
+    c.fillStyle=WHT; c.fillRect(cx-4,30,8,7);
+    pNose(c,cx,34);
+    pEyes(c,cx-7,cx+4,24);
+    // battle scar across the right brow
+    c.fillStyle='#8a2020'; c.fillRect(cx+6,20,1,3); c.fillRect(cx+7,23,1,3); c.fillRect(cx+8,26,1,3);
+    // thick fur ruff with white tips
+    c.fillStyle=col; c.fillRect(cx-13,36,26,4);
+    c.fillStyle=WHT; for(let i=-12;i<12;i+=4) c.fillRect(cx+i,38,2,3);
+    pCrown(c,cx,0,8);
+  } else if(cmd.breed==='pwd'){
+    // curly mop top — staggered curls
+    c.fillStyle=col;
+    for(let i=-10;i<=6;i+=4){ c.fillRect(cx+i,12+(((i/4)%2)?2:0),5,6); }
+    c.fillRect(cx-10,16,20,6);
+    // long floppy wavy ears
+    c.fillRect(cx-14,18,5,16); c.fillRect(cx+9,18,5,16);
     c.fillStyle='rgba(0,0,0,0.3)';
-    for(let i=-7;i<=9;i+=4){ c.fillRect(x+i-1,y-36,2,2); }
-  } else if(cmd.breed==='shiba'){    // small alert ears + white cheeks
-    c.fillRect(x-11,y-43,7,10); c.fillRect(x+4,y-43,7,10);
-    c.fillStyle='rgba(0,0,0,0.4)'; c.fillRect(x-9,y-40,3,5); c.fillRect(x+6,y-40,3,5);
-    c.fillStyle='rgba(255,255,255,0.3)'; c.fillRect(x-11,y-28,5,8); c.fillRect(x+6,y-28,5,8);
-  } else {                           // chow: tiny ears buried in a lion mane
-    c.fillRect(x-10,y-42,6,7); c.fillRect(x+4,y-42,6,7);
-    c.fillStyle='rgba(0,0,0,0.25)';
-    c.fillRect(x-15,y-38,4,18); c.fillRect(x+11,y-38,4,18); c.fillRect(x-13,y-39,26,3);
+    c.fillRect(cx-14,22,5,2); c.fillRect(cx+9,22,5,2);
+    c.fillRect(cx-14,28,5,2); c.fillRect(cx+9,28,5,2);
+    // head with shaggy fringe over the brow
+    c.fillStyle=col; c.fillRect(cx-9,20,18,14);
+    c.fillStyle='rgba(0,0,0,0.25)'; for(let i=-8;i<=6;i+=3) c.fillRect(cx+i,20,2,3);
+    pEyes(c,cx-7,cx+4,25);
+    // grey shaggy beard muzzle
+    c.fillStyle='#9ab8b0'; c.fillRect(cx-4,29,8,7);
+    c.fillStyle='rgba(0,0,0,0.25)'; for(let i=-3;i<=3;i+=3) c.fillRect(cx+i,33,1,3);
+    pNose(c,cx,29);
+    // navy admiral coat with gold buttons
+    c.fillStyle='#102a4a'; c.fillRect(cx-12,38,24,6);
+    c.fillStyle='#d4a820'; c.fillRect(cx-9,40,2,2); c.fillRect(cx+7,40,2,2);
+    pCrown(c,cx,2,7);
+  } else if(cmd.breed==='shiba'){
+    // small forward-tilted triangular ears with cream inner
+    c.fillStyle=col; c.fillRect(cx-11,10,7,10); c.fillRect(cx+4,10,7,10);
+    c.fillStyle='#f0e0c8'; c.fillRect(cx-9,13,3,5); c.fillRect(cx+6,13,3,5);
+    // foxy head
+    c.fillStyle=col; c.fillRect(cx-9,18,18,16);
+    // urajiro: cream cheeks + brow dots
+    c.fillStyle='#f0e0c8';
+    c.fillRect(cx-9,26,5,8); c.fillRect(cx+4,26,5,8);
+    c.fillRect(cx-7,21,3,2); c.fillRect(cx+4,21,3,2);
+    // narrow white muzzle
+    c.fillStyle=WHT; c.fillRect(cx-3,27,6,9);
+    pNose(c,cx,29);
+    // smug half-lidded eyes
+    c.fillStyle='#0a0408'; c.fillRect(cx-7,25,3,2); c.fillRect(cx+4,25,3,2);
+    c.fillStyle='#fff0a0'; c.fillRect(cx-7,24,3,1); c.fillRect(cx+4,24,3,1);
+    // kimono crossover
+    c.fillStyle='#2a1620'; c.fillRect(cx-12,38,13,3); c.fillRect(cx-1,41,13,3);
+    pCrown(c,cx,2,7);
+  } else { // chow — face lost in an enormous lion mane
+    c.fillStyle=col; c.fillRect(cx-15,10,30,28);
+    c.fillStyle='rgba(0,0,0,0.22)';
+    for(let i=-14;i<=12;i+=4){ c.fillRect(cx+i,10,2,3); }
+    c.fillRect(cx-15,14,2,22); c.fillRect(cx+13,14,2,22);
+    // tiny round ears barely poking out
+    c.fillStyle='rgba(0,0,0,0.35)'; c.fillRect(cx-11,9,5,3); c.fillRect(cx+6,9,5,3);
+    // small deep-set face
+    c.fillStyle='#a88418'; c.fillRect(cx-8,17,16,17);
+    // scowling brows
+    c.fillStyle='#0a0408'; c.fillRect(cx-7,21,5,2); c.fillRect(cx+2,21,5,2);
+    pEyes(c,cx-6,cx+3,23);
+    // short muzzle
+    c.fillStyle='#c8a868'; c.fillRect(cx-4,27,8,7);
+    pNose(c,cx,27);
+    // the famous purple tongue, out
+    c.fillStyle='#7a4a9a'; c.fillRect(cx-2,32,4,4);
+    c.fillStyle='#9a6aba'; c.fillRect(cx-1,32,2,2);
+    // silk robe frog clasps
+    c.fillStyle='#d4a820'; c.fillRect(cx-1,40,2,2); c.fillRect(cx-1,45,2,2); c.fillRect(cx-1,50,2,2);
+    pCrown(c,cx,0,9);
   }
-  c.fillStyle='rgba(255,255,255,0.18)'; c.fillRect(x-4,y-24,8,5);
-  c.fillStyle='#0a0408'; c.fillRect(x-2,y-22,4,3);
-  if(cmd.breed==='chow'){ c.fillStyle='#7a4a9a'; c.fillRect(x-1,y-19,3,2); }  // the famous purple tongue
-  c.fillStyle='#fff0a0'; c.fillRect(x-7,y-30,3,3); c.fillRect(x+4,y-30,3,3);
-  c.fillStyle='#ffd040'; c.fillRect(x-7,y-30,1,1); c.fillRect(x+4,y-30,1,1);
-  c.fillStyle='#d4a820'; c.fillRect(x-11,y-50,22,4);
-  c.fillStyle='#f0d050'; c.fillRect(x-10,y-54,3,5); c.fillRect(x-2,y-56,4,7); c.fillRect(x+7,y-54,3,5);
-  c.fillStyle='#ff4040'; c.fillRect(x-2,y-50,4,3);
-  c.strokeStyle='#000'; c.lineWidth=1; c.strokeRect(x-12.5,y-18.5,24,30);
+  c.strokeStyle='#000'; c.lineWidth=1; c.strokeRect(cx-12.5,38.5,24,23);
 }
 function showCmdSelect(){
   phase = PHASE.CMD;
@@ -1828,6 +1943,7 @@ function showCmdSelect(){
     const fc = document.createElement('div'); fc.className='cfac'; fc.textContent=cmd.fac;
     fc.style.color = cmd.col; card.appendChild(fc);
     const cv = document.createElement('canvas'); cv.width=48; cv.height=64;
+    cv.style.width='96px'; cv.style.height='128px';
     card.appendChild(cv);
     const nm = document.createElement('div'); nm.className='cname'; nm.textContent=cmd.name; card.appendChild(nm);
     const tt = document.createElement('div'); tt.className='ctitle'; tt.textContent=cmd.title; card.appendChild(tt);
