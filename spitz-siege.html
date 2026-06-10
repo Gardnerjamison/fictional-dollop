@@ -225,7 +225,7 @@ const screen = document.getElementById('screen');
 const g = screen.getContext('2d');
 g.imageSmoothingEnabled = false;
 
-const GROUND_Y = 196;     // ground top in buffer
+const GROUND_Y = 192;     // ground top in buffer — multiple of TILE so the build grid sits flush
 const TILE = 16;          // block size
 const WORLD_W = 760;      // world width (scrollable) — kept tight so cannon aim is forgiving
 let camX = 0;
